@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#040f08">
+<title>Patagonia 360 · Experiencias Inmersivas</title>
+
+<!-- ═══════════════════════════════════════════════════
+     DEPENDENCIAS
+     - Leaflet.js  : mapas
+     - exifr lite  : lectura de GPS desde EXIF de fotos
+     - Google Fonts: Syne + DM Sans
+     ═══════════════════════════════════════════════════ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- exifr: extrae GPS, fecha, cámara de fotos JPEG/HEIC -->
+<script src="https://unpkg.com/exifr@7.1.3/dist/lite.umd.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════
+   RESET + VARIABLES DE MARCA
+   ═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #040f08;
+  --surface:     #091508;
+  --surface2:    #0d1c10;
+  --border:      #1a3321;
+  --border2:     #243d2a;
+  --green:       #22d68a;
+  --green-dim:   #1aaa6e;
+  --green-glow:  rgba(34,214,138,.15);
+  --gold:        #e8b84b;
+  --text:        #ddeee5;
+  --text-muted:  #6a8a75;
+  --text-dim:    #334d3c;
+  --danger:      #ff5a5a;
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --radius:      14px;
+  --radius-sm:   9px;
+  --radius-pill: 99px;
+}
+
+html, body {
+  height: 100%; width: 100%;
+  background: #1a2a1e;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+/* ─── Phone shell ─── */
+#phone {
+  position: relative;
+  width: min(390px, 100vw);
+  height: min(780px, 100vh);
+  background: var(--bg);
+  border-radius: clamp(0px, 5vw, 32px);
+  border: 1.5px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(34,214,138,.06);
+  display: flex; flex-direction: column;
+}
+#phone::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 180px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 180' preserveAspectRatio='none'%3E%3Cpolygon points='0,180 70,68 140,120 210,32 285,105 390,48 390,180' fill='%230d1c10'/%3E%3Cpolygon points='0,180 0,148 45,130 95,150 155,120 215,140 270,118 330,136 390,122 390,180' fill='%23091508'/%3E%3C/svg%3E") bottom/cover no-repeat;
+  pointer-events: none; z-index: 0;
+}
+
+/* ─── Pantallas ─── */
+.screen {
+  display: none; flex-direction: column;
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 48px 22px 36px;
+  position: relative; z-index: 1;
+  scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+.screen.active { display: flex; animation: fade-in .22s ease; }
+@keyframes fade-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ─── Botones ─── */
+.btn {
+  width: 100%; padding: 15px 18px;
+  border-radius: var(--radius);
+  font-family: var(--font-body); font-size: 14px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: all .18s ease; display: flex; align-items: center; gap: 10px;
+  letter-spacing: .02em;
+}
+.btn-outline { background: rgba(255,255,255,.04); border: 1px solid var(--border2); color: var(--text); }
+.btn-outline:hover { background: rgba(255,255,255,.08); }
+.btn-green { background: var(--green); color: #011a0d; font-weight: 700; justify-content: center; }
+.btn-green:hover { background: var(--green-dim); }
+.btn-green:disabled { opacity: .35; cursor: default; }
+.btn-gold { background: var(--gold); color: #1a0e00; font-weight: 700; justify-content: center; }
+.btn-gold:hover { filter: brightness(1.1); }
+.btn-gold:disabled { opacity: .35; cursor: default; }
+.btn-ar {
+  background: linear-gradient(135deg, rgba(34,214,138,.12), rgba(34,214,138,.22));
+  border: 1px solid rgba(34,214,138,.4); color: var(--green);
+  font-weight: 700; justify-content: center; font-size: 15px;
+}
+.btn-ar:hover { background: rgba(34,214,138,.25); }
+.btn-ghost {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 13px; padding: 0; width: auto; cursor: pointer;
+  font-family: var(--font-body); display: inline-flex; align-items: center; gap: 5px;
+  margin-bottom: 18px;
+}
+.btn-ghost:hover { color: var(--text); }
+.btn-danger { background: rgba(255,90,90,.07); border: 1px solid rgba(255,90,90,.2); color: var(--danger); font-size: 12px; padding: 7px 12px; width: auto; }
+
+/* ─── Tarjetas ─── */
+.card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.card-gold { border-color: rgba(232,184,75,.3); background: rgba(232,184,75,.04); }
+.card-green { border-color: rgba(34,214,138,.25); background: rgba(34,214,138,.04); }
+
+/* ─── Chips ─── */
+.chip { display: inline-flex; align-items: center; gap: 5px; border-radius: var(--radius-pill); font-size: 10px; font-weight: 700; padding: 4px 10px; letter-spacing: .07em; text-transform: uppercase; }
+.chip-green { background: rgba(34,214,138,.12); color: var(--green); border: 1px solid rgba(34,214,138,.3); }
+.chip-gold  { background: rgba(232,184,75,.12); color: var(--gold); border: 1px solid rgba(232,184,75,.3); }
+.chip-live  { background: rgba(34,214,138,.12); color: var(--green); border: 1px solid rgba(34,214,138,.3); }
+.chip-live::before { content: '●'; font-size: 7px; }
+.chip-blue  { background: rgba(92,168,232,.12); color: #5ca8e8; border: 1px solid rgba(92,168,232,.3); }
+
+/* ─── Inputs ─── */
+.input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+  font-size: 13px; font-family: var(--font-body); outline: none;
+}
+.input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-glow); }
+.input::placeholder { color: var(--text-dim); }
+textarea.input { resize: vertical; min-height: 60px; }
+label.lbl { font-size: 10px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+
+/* ─── Etiquetas de sección ─── */
+.section-label { font-size: 10px; color: var(--text-dim); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; margin-top: 4px; }
+
+/* ─── Títulos ─── */
+.screen-title { font-family: var(--font-display); font-size: 26px; color: #fff; line-height: 1.1; margin-bottom: 4px; letter-spacing: -.02em; }
+
+/* ─── Glow decorativo ─── */
+.glow-blob { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(80px); opacity: .18; }
+
+/* ─── Logo marks ─── */
+.logo-mark {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(34,214,138,.15), rgba(232,184,75,.1));
+  border: 1.5px solid rgba(232,184,75,.4); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  box-shadow: 0 0 16px rgba(232,184,75,.15);
+}
+.logo-mark-sm {
+  width: 32px; height: 32px; font-size: 15px;
+  background: linear-gradient(135deg, rgba(34,214,138,.1), rgba(232,184,75,.08));
+  border: 1px solid rgba(232,184,75,.3); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   HOME
+   ═══════════════════════════════════════════════════ */
+#screen-home { justify-content: space-between; }
+.home-hero { text-align: center; padding: 10px 0 20px; }
+.home-hero .logo-mark { width: 72px; height: 72px; font-size: 32px; margin: 0 auto 14px; }
+.home-hero h1 { font-family: var(--font-display); font-size: 32px; color: #fff; letter-spacing: -.03em; line-height: 1; }
+.home-hero h1 span { color: var(--green); }
+.home-hero p { font-size: 14px; color: var(--text-muted); margin-top: 6px; }
+
+.mode-card {
+  border-radius: var(--radius); padding: 18px; margin-bottom: 10px; cursor: pointer;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  transition: all .18s ease; text-align: left; width: 100%;
+  font-family: var(--font-body); color: var(--text);
+}
+.mode-card:hover { border-color: var(--border); background: rgba(255,255,255,.05); }
+.mode-card.gold-mode { border-color: rgba(232,184,75,.35); background: rgba(232,184,75,.05); }
+.mode-card.gold-mode:hover { background: rgba(232,184,75,.09); }
+.mode-card.blue-mode { border-color: rgba(92,168,232,.35); background: rgba(92,168,232,.05); }
+.mode-card.blue-mode:hover { background: rgba(92,168,232,.09); }
+.mode-card-icon { width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.mode-card-icon.green-icon { background: rgba(34,214,138,.12); border: 1px solid rgba(34,214,138,.3); }
+.mode-card-icon.gold-icon  { background: rgba(232,184,75,.12); border: 1px solid rgba(232,184,75,.3); }
+.mode-card-icon.blue-icon  { background: rgba(92,168,232,.12); border: 1px solid rgba(92,168,232,.3); }
+.mode-card-title { font-weight: 700; font-size: 16px; }
+.mode-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.mode-card-arrow { margin-left: auto; font-size: 18px; color: var(--text-dim); }
+
+/* ═══════════════════════════════════════════════════
+   HOTEL
+   ═══════════════════════════════════════════════════ */
+.poi-btn { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: all .16s ease; width: 100%; font-family: var(--font-body); color: var(--text); }
+.poi-btn:hover { border-color: var(--border2); background: var(--surface2); }
+.poi-btn-icon { width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.poi-btn-name { font-weight: 700; font-size: 14px; }
+.poi-btn-dist { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.poi-btn-arrow { margin-left: auto; color: var(--text-dim); }
+
+/* ═══════════════════════════════════════════════════
+   NAVIGATION / MAPA
+   ═══════════════════════════════════════════════════ */
+#map-container { width: 100%; height: 200px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 16px; }
+#leaflet-map { width: 100%; height: 100%; }
+
+/* Leaflet dark override */
+.leaflet-tile { filter: brightness(.68) saturate(.5) hue-rotate(118deg); }
+.leaflet-control-zoom { display: none; }
+.leaflet-popup-content-wrapper { background: var(--surface2) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; box-shadow: 0 8px 24px rgba(0,0,0,.5) !important; color: var(--text) !important; }
+.leaflet-popup-tip { background: var(--surface2) !important; }
+.leaflet-popup-content { font-family: var(--font-body) !important; font-size: 13px !important; margin: 10px 12px !important; }
+.popup-img { width: 100%; height: 90px; object-fit: cover; border-radius: 7px; margin-bottom: 8px; display: block; }
+.popup-title { font-weight: 700; color: #fff; margin-bottom: 3px; font-size: 13px; }
+.popup-desc { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+.popup-dist { color: var(--green); font-size: 11px; font-weight: 700; margin-top: 6px; }
+
+.dist-hud { display: flex; gap: 8px; margin-bottom: 14px; }
+.dist-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: center; }
+.dist-card-label { font-size: 9px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+.dist-card-value { font-size: 18px; font-weight: 800; color: var(--green); margin-top: 2px; }
+.dist-card-value.warn { color: var(--gold); }
+
+#proximity-alert { display: none; align-items: center; gap: 10px; background: rgba(232,184,75,.08); border: 1px solid rgba(232,184,75,.35); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--gold); animation: pulse-gold 2s ease-in-out infinite; }
+#proximity-alert.visible { display: flex; }
+@keyframes pulse-gold { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+#nav-arrow-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+.arrow-ring { width: 90px; height: 90px; border-radius: 50%; background: var(--green-glow); border: 1.5px solid rgba(34,214,138,.3); display: flex; align-items: center; justify-content: center; }
+.arrow-svg { transition: transform .4s ease; }
+
+.gps-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); letter-spacing: .06em; }
+.gps-ok   { background: rgba(34,214,138,.1); color: var(--green); border: 1px solid rgba(34,214,138,.25); }
+.gps-off  { background: rgba(255,90,90,.1); color: var(--danger); border: 1px solid rgba(255,90,90,.25); }
+.gps-wait { background: rgba(255,255,255,.05); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ═══════════════════════════════════════════════════
+   ARRIVAL
+   ═══════════════════════════════════════════════════ */
+.arrival-icon { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 36px; border: 2px solid var(--green); background: rgba(34,214,138,.1); overflow: hidden; }
+.arrival-title { font-family: var(--font-display); font-size: 28px; color: #fff; text-align: center; margin-bottom: 8px; }
+
+/* ═══════════════════════════════════════════════════
+   AR VIEW — fullscreen overlay
+   ═══════════════════════════════════════════════════ */
+#screen-ar {
+  position: fixed; inset: 0; z-index: 100;
+  background: #000; display: none; flex-direction: column;
+  align-items: stretch; padding: 0;
+  width: 100vw; height: 100dvh; max-width: none; border-radius: 0;
+}
+#screen-ar.active { display: flex; }
+#ar-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ar-hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.ar-corner { position: absolute; width: 26px; height: 26px; border-color: var(--green); border-style: solid; opacity: .7; }
+.ar-corner.tl { top: 18%; left: 6%; border-width: 2px 0 0 2px; }
+.ar-corner.tr { top: 18%; right: 6%; border-width: 2px 2px 0 0; }
+.ar-corner.bl { bottom: 32%; left: 6%; border-width: 0 0 2px 2px; }
+.ar-corner.br { bottom: 32%; right: 6%; border-width: 0 2px 2px 0; }
+.ar-scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(34,214,138,.5), transparent); animation: ar-scan 3s linear infinite; }
+@keyframes ar-scan { 0%{top:18%} 100%{top:68%} }
+
+/* Marcador POI en AR — ahora con imagen real */
+.ar-poi-label { position: absolute; left: 50%; transform: translateX(-50%); top: 36%; pointer-events: none; }
+.ar-poi-card { background: rgba(4,14,8,.88); border: 1px solid rgba(34,214,138,.4); border-radius: 14px; overflow: hidden; text-align: center; backdrop-filter: blur(10px); min-width: 180px; max-width: 220px; animation: ar-float 2.5s ease-in-out infinite; }
+@keyframes ar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+/* Imagen del POI en la card AR */
+#ar-poi-img { width: 100%; height: 80px; object-fit: cover; display: block; }
+#ar-poi-img.hidden { display: none; }
+.ar-poi-body { padding: 10px 14px 12px; }
+.ar-poi-icon { font-size: 24px; }
+.ar-poi-name { font-size: 15px; font-weight: 800; color: #fff; margin: 4px 0 2px; font-family: var(--font-display); }
+.ar-poi-dist { font-size: 13px; color: var(--green); font-weight: 700; }
+.ar-poi-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+.ar-poi-line { width: 1px; height: 48px; margin: 0 auto; background: linear-gradient(var(--green), transparent); }
+.ar-poi-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin: 0 auto; box-shadow: 0 0 10px var(--green); }
+
+.ar-bottom-hud { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(4,14,8,.95)); padding: 40px 22px 32px; pointer-events: all; }
+.ar-dist-big { font-size: 52px; font-weight: 800; color: var(--green); line-height: 1; letter-spacing: -.03em; }
+.ar-dist-unit { font-size: 20px; font-weight: 500; opacity: .6; }
+.ar-info-row { display: flex; gap: 8px; margin-top: 14px; margin-bottom: 16px; }
+.ar-info-chip { flex: 1; background: rgba(13,28,16,.8); border: 1px solid var(--border); border-radius: 9px; padding: 9px 8px; text-align: center; backdrop-filter: blur(6px); }
+.ar-info-chip span:first-child { display: block; font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; }
+.ar-info-chip span:last-child { font-size: 14px; font-weight: 700; color: var(--text); display: block; margin-top: 2px; }
+.ar-top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(rgba(4,14,8,.85), transparent); pointer-events: all; }
+.ar-close-btn { background: rgba(4,14,8,.75); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 8px 14px; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: var(--font-body); backdrop-filter: blur(6px); }
+.ar-badge { background: rgba(4,14,8,.75); border: 1px solid rgba(34,214,138,.3); border-radius: var(--radius-pill); padding: 6px 14px; color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: .08em; backdrop-filter: blur(6px); }
+.ar-compass { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(4,14,8,.75); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 5px 18px; backdrop-filter: blur(6px); overflow: hidden; width: 200px; }
+.ar-compass-track { display: flex; position: relative; height: 18px; }
+.ar-compass-dirs { display: flex; transition: transform .3s ease; }
+.ar-compass-dir { width: 50px; text-align: center; font-size: 10px; font-weight: 700; color: var(--text-dim); }
+.ar-compass-dir.north { color: var(--gold); }
+.ar-compass-needle { position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: var(--gold); transform: translateX(-50%); }
+
+/* ═══════════════════════════════════════════════════
+   CREATOR V2 — con fotos, EXIF, nombre de recorrido
+   ═══════════════════════════════════════════════════ */
+#creator-map-wrap { height: 160px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
+#creator-map { width: 100%; height: 100%; }
+
+/* Zona de carga de foto */
+.photo-drop-zone {
+  border: 1.5px dashed rgba(232,184,75,.4); border-radius: var(--radius);
+  padding: 20px 16px; text-align: center; cursor: pointer;
+  background: rgba(232,184,75,.03); transition: all .18s ease;
+  position: relative; overflow: hidden;
+}
+.photo-drop-zone:hover { border-color: var(--gold); background: rgba(232,184,75,.07); }
+.photo-drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.photo-drop-icon { font-size: 28px; margin-bottom: 6px; }
+.photo-drop-text { font-size: 13px; font-weight: 600; color: var(--gold); }
+.photo-drop-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+
+/* Preview de foto antes de confirmar */
+#poi-photo-preview {
+  display: none; margin-top: 12px;
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border2); position: relative;
+}
+#poi-photo-preview.visible { display: block; }
+#poi-preview-img { width: 100%; height: 120px; object-fit: cover; display: block; }
+.preview-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(4,14,8,.9));
+  padding: 10px 12px;
+}
+.exif-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; padding: 3px 9px;
+  border-radius: var(--radius-pill); letter-spacing: .05em;
+}
+.exif-ok   { background: rgba(34,214,138,.15); color: var(--green); border: 1px solid rgba(34,214,138,.3); }
+.exif-gps  { background: rgba(92,168,232,.15); color: #5ca8e8; border: 1px solid rgba(92,168,232,.3); }
+.exif-none { background: rgba(255,90,90,.1); color: #ff8080; border: 1px solid rgba(255,90,90,.25); }
+
+/* POI en lista del creator — con thumb de foto */
+.creator-poi-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid rgba(232,184,75,.22); background: rgba(232,184,75,.04);
+  margin-bottom: 8px;
+}
+.creator-poi-thumb {
+  width: 46px; height: 46px; border-radius: 8px; flex-shrink: 0;
+  object-fit: cover; border: 1px solid var(--border);
+}
+.creator-poi-thumb-empty {
+  width: 46px; height: 46px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.creator-poi-info { flex: 1; min-width: 0; }
+.creator-poi-name { font-weight: 700; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.creator-poi-coords { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.creator-poi-exif { font-size: 9px; color: var(--green); margin-top: 1px; }
+
+/* Barra de nombre del recorrido */
+.tour-name-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(34,214,138,.05); border: 1px solid rgba(34,214,138,.25);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px;
+}
+.tour-name-bar .logo-mark-sm { font-size: 12px; }
+.tour-name-input {
+  flex: 1; background: none; border: none; color: var(--text);
+  font-size: 14px; font-weight: 700; font-family: var(--font-body); outline: none;
+}
+.tour-name-input::placeholder { color: var(--text-dim); font-weight: 400; }
+
+/* Formulario colapsable de agregar POI */
+#add-poi-form {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+  display: none;
+}
+#add-poi-form.visible { display: block; animation: fade-in .2s ease; }
+.form-row { display: flex; gap: 9px; }
+.form-row > div { flex: 1; }
+
+/* ═══════════════════════════════════════════════════
+   GALERÍA DE RECORRIDOS
+   ═══════════════════════════════════════════════════ */
+.gallery-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; gap: 12px; padding: 40px 20px;
+}
+.gallery-empty-icon { font-size: 48px; opacity: .4; }
+.gallery-empty-title { font-size: 16px; font-weight: 700; color: var(--text-muted); }
+.gallery-empty-sub { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+/* Tarjeta de recorrido en galería */
+.tour-card {
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 14px;
+  border: 1px solid var(--border2); background: var(--surface2);
+  transition: all .18s ease;
+}
+.tour-card:hover { border-color: var(--border); }
+.tour-card-cover {
+  width: 100%; height: 130px; object-fit: cover; display: block;
+  position: relative;
+}
+/* Cover placeholder cuando no hay foto */
+.tour-card-cover-placeholder {
+  width: 100%; height: 130px; background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.tour-card-body { padding: 13px 14px; }
+.tour-card-name { font-family: var(--font-display); font-size: 17px; color: #fff; margin-bottom: 4px; }
+.tour-card-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.tour-card-meta span { display: flex; align-items: center; gap: 4px; }
+.tour-card-actions { display: flex; gap: 8px; }
+.tour-card-btn {
+  flex: 1; padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font-body);
+  border: none; transition: all .15s ease; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.tour-btn-go { background: var(--green); color: #011a0d; }
+.tour-btn-go:hover { background: var(--green-dim); }
+.tour-btn-del { background: rgba(255,90,90,.08); border: 1px solid rgba(255,90,90,.2); color: var(--danger); flex: 0 0 auto; padding: 10px 12px; }
+.tour-btn-del:hover { background: rgba(255,90,90,.14); }
+
+/* POIs en miniatura dentro de la card */
+.tour-card-pois { display: flex; gap: 5px; margin-top: 8px; overflow: hidden; }
+.tour-poi-mini {
+  width: 34px; height: 34px; border-radius: 6px; object-fit: cover;
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.tour-poi-mini-empty {
+  width: 34px; height: 34px; border-radius: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.tour-poi-more {
+  width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════
+   TOAST — notificación no invasiva
+   ═══════════════════════════════════════════════════ */
+#toast {
+  position: absolute; bottom: 24px; left: 16px; right: 16px; z-index: 200;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 13px 16px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  transform: translateY(100px); opacity: 0;
+  transition: all .28s cubic-bezier(.2,.8,.2,1);
+  pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast-icon { font-size: 18px; flex-shrink: 0; }
+#toast-text { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* ═══════════════════════════════════════════════════
+   GLOBALES / ANIMACIONES
+   ═══════════════════════════════════════════════════ */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.65} }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+</style>
+</head>
+
+<body>
+<div id="phone">
+
+<!-- ════════════════════════════════════════
+     HOME — Selector de modo  (sin cambios)
+     ════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="glow-blob" style="width:300px;height:300px;background:#1a4a30;top:-100px;left:-80px;"></div>
+
+  <div class="home-hero">
+    <div class="logo-mark">◬</div>
+    <h1>Patagonia <span>360</span></h1>
+    <p>AR Experience Platform</p>
+  </div>
+
+  <!-- Modo Viajero -->
+  <button class="mode-card" onclick="goHotel()">
+    <div class="mode-card-icon green-icon">🧭</div>
+    <div>
+      <div class="mode-card-title">Modo Viajero</div>
+      <div class="mode-card-sub">Explorá puntos de interés en AR</div>
+    </div>
+    <div class="mode-card-arrow">›</div>
+  </button>
+
+  <!-- Crear Recorrido -->
+  <button class="mode-card gold-mode" onclick="showCreator()">
+    <div class="mode-card-icon gold-icon">✏️</div>
+    <div>
+      <div class="mode-card-title">Crear Recorrido</div>
+      <div class="mode-card-sub">Diseñá y guardá tu experiencia AR</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:auto;">
+      <span class="chip chip-gold">NUEVO</span>
+      <span style="color:var(--gold);font-size:18px;">›</span>
+    </div>
+  </button>
+
+  <!-- Mis Recorridos (galería) -->
+  <button class="mode-card blue-mode" onclick="showGallery()">
+    <div class="mode-card-icon blue-icon">📚</div>
+    <div>
+      <div class="mode-card-title">Mis Recorridos</div>
+      <div class="mode-card-sub" id="gallery-home-sub">Cargando…</div>
+    </div>
+    <div class="mode-card-arrow" style="color:#5ca8e8;">›</div>
+  </button>
+
+  <p style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:auto;padding-top:16px;">
+    Demo Comercial · Patagonia 360 · Bariloche
+  </p>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     HOTEL — listado de servicios
+     ════════════════════════════════════════ -->
+<div id="screen-hotel" class="screen">
+  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+    <div class="logo-mark-sm">◬</div>
+    <div>
+      <span class="chip chip-live">En vivo</span>
+      <div class="screen-title" style="font-size:22px;margin-top:5px;">Hotel Demo</div>
+      <div style="font-size:12px;color:var(--text-muted);">Co-branding Cliente + Patagonia 360</div>
+    </div>
+  </div>
+
+  <button class="btn btn-ar" style="margin-bottom:18px;" onclick="openARScan()">
+    <span style="font-size:17px;">◉</span> Abrir Vista AR
+    <span style="font-size:10px;background:rgba(34,214,138,.15);border-radius:99px;padding:2px 8px;">LIVE</span>
+  </button>
+
+  <!-- Mini mapa hotel -->
+  <div style="height:80px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:18px;">
+    <svg width="100%" height="100%" style="position:absolute;inset:0;opacity:.3">
+      <line x1="0" y1="26" x2="100%" y2="26" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,10"/>
+      <line x1="0" y1="52" x2="100%" y2="52" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,10"/>
+      <line x1="70" y1="0" x2="70" y2="80" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,10"/>
+      <line x1="180" y1="0" x2="180" y2="80" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,10"/>
+      <line x1="290" y1="0" x2="290" y2="80" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,10"/>
+    </svg>
+    <div style="text-align:center;position:relative;">
+      <div style="font-size:18px;color:var(--green);">⊕</div>
+      <div style="font-size:10px;color:var(--green);font-weight:700;">Tu ubicación</div>
+    </div>
+  </div>
+
+  <div class="section-label">Servicios disponibles</div>
+
+  <button class="poi-btn" onclick="selectSvc('spa')" style="border-color:rgba(126,207,192,.3);">
+    <div class="poi-btn-icon" style="background:rgba(126,207,192,.12);border:1px solid rgba(126,207,192,.35);color:#7ecfc0;">✦</div>
+    <div><div class="poi-btn-name">Spa & Wellness</div><div class="poi-btn-dist">85m · Toca para navegar</div></div>
+    <div class="poi-btn-arrow" style="color:#7ecfc0;">›</div>
+  </button>
+
+  <button class="poi-btn" onclick="selectSvc('restaurant')" style="border-color:rgba(232,201,122,.3);">
+    <div class="poi-btn-icon" style="background:rgba(232,201,122,.12);border:1px solid rgba(232,201,122,.35);color:#e8c97a;">◈</div>
+    <div><div class="poi-btn-name">Restaurante</div><div class="poi-btn-dist">120m · Toca para navegar</div></div>
+    <div class="poi-btn-arrow" style="color:#e8c97a;">›</div>
+  </button>
+
+  <button class="poi-btn" onclick="selectSvc('pool')" style="border-color:rgba(92,168,232,.3);">
+    <div class="poi-btn-icon" style="background:rgba(92,168,232,.12);border:1px solid rgba(92,168,232,.35);color:#5ca8e8;">◎</div>
+    <div><div class="poi-btn-name">Piscina</div><div class="poi-btn-dist">200m · Toca para navegar</div></div>
+    <div class="poi-btn-arrow" style="color:#5ca8e8;">›</div>
+  </button>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     NAVIGATION — GPS + Leaflet
+     ════════════════════════════════════════ -->
+<div id="screen-nav" class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <button class="btn-ghost" onclick="stopNav();show('screen-hotel')" style="margin-bottom:0;">← Volver</button>
+    <span id="gps-status" class="gps-badge gps-wait">GPS buscando…</span>
+  </div>
+
+  <div style="margin-bottom:14px;">
+    <span class="chip chip-green" style="margin-bottom:8px;display:inline-flex;">Navegando</span>
+    <div class="screen-title" id="nav-title-display">—</div>
+    <div style="font-size:12px;color:var(--text-muted);">Seguí las indicaciones</div>
+  </div>
+
+  <div id="map-container"><div id="leaflet-map"></div></div>
+
+  <div id="proximity-alert">
+    <span style="font-size:18px;">⚠️</span>
+    <div>
+      <strong style="color:var(--gold);">¡Estás cerca!</strong><br>
+      <span style="font-size:12px;">A menos de 50m del punto de interés</span>
+    </div>
+    <button class="btn btn-ar" style="width:auto;padding:8px 14px;font-size:12px;margin-left:auto;" onclick="openARView()">Ver en AR →</button>
+  </div>
+
+  <div class="dist-hud">
+    <div class="dist-card"><div class="dist-card-label">Distancia</div><div class="dist-card-value" id="dist-value">—</div></div>
+    <div class="dist-card"><div class="dist-card-label">Rumbo</div><div class="dist-card-value" id="bearing-value" style="font-size:16px;">—</div></div>
+    <div class="dist-card"><div class="dist-card-label">GPS</div><div class="dist-card-value" id="accuracy-value" style="font-size:14px;">—</div></div>
+  </div>
+
+  <div id="nav-arrow-wrap">
+    <div class="arrow-ring">
+      <svg class="arrow-svg" id="nav-arrow-svg" width="52" height="52" viewBox="0 0 52 52" fill="none">
+        <path d="M26 44 L26 10" stroke="var(--green)" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M14 22 L26 10 L38 22" stroke="var(--green)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="26" cy="44" r="3" fill="var(--green)" opacity=".5"/>
+      </svg>
+    </div>
+  </div>
+
+  <button class="btn btn-green" onclick="show('screen-arrival')">✓ Llegué</button>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     ARRIVAL
+     ════════════════════════════════════════ -->
+<div id="screen-arrival" class="screen">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <!-- Imagen del POI si existe, emoji si no -->
+      <div class="arrival-icon" id="arrival-icon-wrap">
+        <img id="arrival-poi-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none;">
+        <span id="arrival-icon-emoji" style="font-size:36px;">✦</span>
+      </div>
+      <div style="font-size:11px;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">✓ Llegaste</div>
+      <div class="arrival-title" id="arr-title-display">—</div>
+      <span class="chip chip-green">Hotel Demo</span>
+    </div>
+    <div class="card" style="margin-bottom:22px;">
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.7;margin:0;" id="arr-desc-display">—</p>
+    </div>
+    <button class="btn btn-green" id="arr-action-btn" onclick="handleAction()" style="margin-bottom:11px;">Reservar</button>
+    <button class="btn btn-outline" onclick="show('screen-home')">← Volver al inicio</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     AR VIEW — fullscreen overlay
+     ════════════════════════════════════════ -->
+<div id="screen-ar" class="screen">
+  <video id="ar-video" autoplay playsinline muted></video>
+  <div class="ar-hud">
+    <div class="ar-top-bar">
+      <button class="ar-close-btn" onclick="closeARView()">✕ Cerrar AR</button>
+      <div class="ar-compass">
+        <div class="ar-compass-track">
+          <div class="ar-compass-dirs" id="ar-compass-dirs"></div>
+          <div class="ar-compass-needle"></div>
+        </div>
+      </div>
+      <div class="ar-badge">◉ AR LIVE</div>
+    </div>
+
+    <div class="ar-corner tl"></div>
+    <div class="ar-corner tr"></div>
+    <div class="ar-corner bl"></div>
+    <div class="ar-corner br"></div>
+    <div class="ar-scan-line"></div>
+
+    <!-- Marcador POI con imagen real -->
+    <div class="ar-poi-label" id="ar-poi-overlay">
+      <div class="ar-poi-card">
+        <!-- Imagen real del POI -->
+        <img id="ar-poi-img" src="" alt="" class="hidden" onerror="this.classList.add('hidden')">
+        <div class="ar-poi-body">
+          <div class="ar-poi-icon" id="ar-poi-icon">📍</div>
+          <div class="ar-poi-name" id="ar-poi-name">Lugar</div>
+          <div class="ar-poi-dist" id="ar-poi-dist">— m</div>
+          <div class="ar-poi-desc" id="ar-poi-desc">Descripción del lugar</div>
+        </div>
+      </div>
+      <div class="ar-poi-line"></div>
+      <div class="ar-poi-dot"></div>
+    </div>
+
+    <div class="ar-bottom-hud">
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;">Distancia al destino</div>
+      <div><span class="ar-dist-big" id="ar-dist-big">—</span><span class="ar-dist-unit">m</span></div>
+      <div class="ar-info-row">
+        <div class="ar-info-chip"><span>Rumbo</span><span id="ar-bearing-chip">—</span></div>
+        <div class="ar-info-chip"><span>GPS</span><span id="ar-gps-chip" style="color:var(--green);">●●●●</span></div>
+        <div class="ar-info-chip"><span>Señal</span><span id="ar-signal-chip" style="color:var(--green);">Buena</span></div>
+      </div>
+      <button class="btn btn-green" onclick="closeARView();show('screen-arrival')">✓ Llegué aquí</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     CREATOR V2 — con fotos, EXIF, tours
+     ════════════════════════════════════════ -->
+<div id="screen-creator" class="screen">
+  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    <div class="logo-mark-sm" style="background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.35);">✏️</div>
+    <div>
+      <span class="chip chip-gold">Modo Creador</span>
+      <div class="screen-title" style="font-size:20px;margin-top:5px;">Crear Recorrido</div>
+    </div>
+  </div>
+
+  <!-- Nombre del recorrido -->
+  <div class="tour-name-bar">
+    <div class="logo-mark-sm">◬</div>
+    <input class="tour-name-input" id="creator-tour-name"
+      type="text" placeholder="Nombre del recorrido…" maxlength="60"/>
+  </div>
+
+  <!-- Mapa del creator -->
+  <div id="creator-map-wrap">
+    <div id="creator-map"></div>
+  </div>
+
+  <!-- Lista de POIs creados -->
+  <div class="section-label">Puntos del recorrido (<span id="creator-poi-count">0</span>)</div>
+  <div id="creator-poi-list">
+    <p style="font-size:13px;color:var(--text-dim);text-align:center;padding:12px 0;" id="creator-empty-msg">
+      Todavía no hay puntos. Agregá el primero.
+    </p>
+  </div>
+
+  <!-- Botón abrir formulario -->
+  <button class="btn btn-outline" style="border-style:dashed;border-color:rgba(232,184,75,.4);color:var(--gold);justify-content:center;margin-bottom:12px;" onclick="toggleAddPoiForm()">
+    <span style="font-size:16px;">＋</span> Agregar Punto de Interés
+  </button>
+
+  <!-- Formulario colapsable para nuevo POI -->
+  <div id="add-poi-form">
+    <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:.04em;">NUEVO PUNTO DE INTERÉS</div>
+
+    <!-- Zona de carga de foto -->
+    <label class="lbl">Foto del lugar (opcional)</label>
+    <div class="photo-drop-zone" style="margin-bottom:12px;">
+      <input type="file" id="poi-photo-input" accept="image/*" onchange="handlePhotoSelected(this)">
+      <div class="photo-drop-icon">📷</div>
+      <div class="photo-drop-text">Tocar para subir foto</div>
+      <div class="photo-drop-sub">JPEG · PNG · HEIC · Se lee GPS automáticamente</div>
+    </div>
+
+    <!-- Preview de foto + estado EXIF -->
+    <div id="poi-photo-preview">
+      <img id="poi-preview-img" src="" alt="">
+      <div class="preview-overlay">
+        <span class="exif-badge exif-none" id="exif-status-badge">Sin GPS EXIF</span>
+      </div>
+    </div>
+
+    <!-- Campos del POI -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+      <div>
+        <label class="lbl">Nombre del lugar *</label>
+        <input class="input" id="creator-poi-name" type="text" placeholder="Ej: Mirador del Cerro"/>
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="lbl">Latitud</label>
+          <input class="input" id="creator-poi-lat" type="number" step="any" placeholder="-41.1335"/>
+        </div>
+        <div>
+          <label class="lbl">Longitud</label>
+          <input class="input" id="creator-poi-lng" type="number" step="any" placeholder="-71.3103"/>
+        </div>
+      </div>
+      <div>
+        <label class="lbl">Descripción (opcional)</label>
+        <textarea class="input" id="creator-poi-desc" placeholder="Descripción del lugar…"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:9px;margin-top:12px;">
+      <button class="btn btn-gold" style="flex:1;" onclick="creatorAddPoiWithPhoto()">Confirmar Punto</button>
+      <button class="btn btn-outline" style="flex:0 0 auto;width:auto;padding:0 16px;" onclick="cancelAddPoi()">✕</button>
+    </div>
+  </div>
+
+  <!-- Guardar recorrido -->
+  <div style="display:flex;flex-direction:column;gap:9px;margin-top:8px;">
+    <button class="btn btn-green" id="creator-save-btn" onclick="saveTour()" disabled>
+      💾 Guardar Recorrido
+    </button>
+    <p id="creator-save-hint" style="font-size:11px;color:var(--text-dim);text-align:center;">
+      Agregá al menos 1 punto para guardar
+    </p>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     GALERÍA DE RECORRIDOS
+     ════════════════════════════════════════ -->
+<div id="screen-gallery" class="screen">
+  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+    <div class="logo-mark-sm" style="background:rgba(92,168,232,.12);border-color:rgba(92,168,232,.35);">📚</div>
+    <div>
+      <span class="chip chip-blue">Mis Recorridos</span>
+      <div class="screen-title" style="font-size:20px;margin-top:5px;">Galería</div>
+      <div style="font-size:12px;color:var(--text-muted);" id="gallery-subtitle">Cargando…</div>
+    </div>
+  </div>
+
+  <div id="gallery-list">
+    <!-- renderizado por JS -->
+  </div>
+
+  <button class="btn btn-outline" onclick="showCreator()" style="margin-top:8px;justify-content:center;">
+    ＋ Crear nuevo recorrido
+  </button>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     TOAST — notificación global
+     ════════════════════════════════════════ -->
+<div id="toast">
+  <span id="toast-icon">✓</span>
+  <span id="toast-text">Mensaje</span>
+</div>
+
+</div><!-- /phone -->
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT — Toda la lógica
+     Organizado por secciones claramente delimitadas
+     ════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════
+   1. ESTADO GLOBAL
+   ══════════════════════════════════════════════════ */
+const APP = {
+  // POI/servicio seleccionado para navegación
+  selectedSvc: null,
+  // Posición GPS del usuario
+  userLat: null, userLng: null, userAccuracy: null,
+  // Watch ID geolocation
+  geoWatchId: null,
+  // Instancias Leaflet
+  navMap: null, creatorMap: null,
+  userMarker: null, poiMarkers: [],
+  creatorUserMarker: null, creatorPoiMarkers: [],
+  // Stream cámara AR
+  arStream: null,
+  // Timer brújula AR
+  arHeadingTimer: null,
+  // Estado del creator
+  creatorPois: [],           // POIs de la sesión actual
+  creatorPhotoDataUrl: null, // Foto en staging (antes de confirmar)
+  creatorPhotoExifGPS: null, // GPS leído del EXIF (o null)
+  creatorFormOpen: false,
+};
+
+/* ══════════════════════════════════════════════════
+   2. BASE DE DATOS HOTEL (POIs predefinidos)
+   ══════════════════════════════════════════════════ */
+const HOTEL_POIS = {
+  spa: {
+    id: 'spa', name: 'Spa & Wellness', icon: '✦', emoji: '🧖', color: '#7ecfc0',
+    lat: -41.1320, lng: -71.3095,
+    desc: 'Relajación premium con vista panorámica a los cerros patagónicos.',
+    action: 'Reservar turno',
+    img: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=300&h=120&fit=crop',
+  },
+  restaurant: {
+    id: 'restaurant', name: 'Restaurante', icon: '◈', emoji: '🍽️', color: '#e8c97a',
+    lat: -41.1340, lng: -71.3110,
+    desc: 'Cocina patagónica de autor. Abierto hasta las 23:00.',
+    action: 'Ver menú',
+    img: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&h=120&fit=crop',
+  },
+  pool: {
+    id: 'pool', name: 'Piscina', icon: '◎', emoji: '🏊', color: '#5ca8e8',
+    lat: -41.1328, lng: -71.3080,
+    desc: 'Piscina cubierta climatizada con vista al lago Nahuel Huapi.',
+    action: 'Reservar lugar',
+    img: 'https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?w=300&h=120&fit=crop',
+  },
+};
+
+/* ══════════════════════════════════════════════════
+   3. SISTEMA DE TOURS — localStorage
+   ══════════════════════════════════════════════════ */
+const STORAGE_KEY = 'p360_tours_v2';
+
+/** Cargar todos los tours desde localStorage */
+function loadTours() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+/** Guardar array de tours en localStorage */
+function persistTours(tours) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tours)); } catch(e) {
+    showToast('⚠️', 'Error al guardar (almacenamiento lleno)');
+  }
+}
+
+/** Eliminar un tour por ID */
+function deleteTour(id) {
+  const tours = loadTours().filter(t => t.id !== id);
+  persistTours(tours);
+  renderGallery();
+  updateGalleryHomeBadge();
+  showToast('🗑️', 'Recorrido eliminado');
+}
+
+/**
+ * Cargar un tour guardado para navegación.
+ * Reemplaza HOTEL_POIS con los POIs del tour seleccionado.
+ */
+function loadTourForNavigation(tourId) {
+  const tours = loadTours();
+  const tour = tours.find(t => t.id === tourId);
+  if (!tour || tour.pois.length === 0) {
+    showToast('⚠️', 'Este recorrido no tiene puntos');
+    return;
+  }
+  // Seleccionar el primer POI del tour
+  const firstPoi = tour.pois[0];
+  APP.selectedSvc = { ...firstPoi, color: '#22d68a', action: 'Ver detalle' };
+
+  // Resetear mapa de nav para que tome los nuevos POIs
+  resetNavMap();
+
+  // Actualizar pantalla NAV
+  document.getElementById('nav-title-display').textContent =
+    `${tour.name} · ${firstPoi.name}`;
+  document.getElementById('arr-title-display').textContent = firstPoi.name;
+  document.getElementById('arr-desc-display').textContent = firstPoi.desc || '';
+  document.getElementById('arr-action-btn').textContent = 'Ver detalle';
+  document.getElementById('arr-action-btn').dataset.done = '0';
+
+  // Imagen en arrival
+  const arrImg = document.getElementById('arrival-poi-img');
+  const arrEmoji = document.getElementById('arrival-icon-emoji');
+  if (firstPoi.img) {
+    arrImg.src = firstPoi.img; arrImg.style.display = 'block';
+    arrEmoji.style.display = 'none';
+  } else {
+    arrImg.style.display = 'none'; arrEmoji.style.display = '';
+    arrEmoji.textContent = '📍';
+  }
+
+  document.getElementById('proximity-alert').classList.remove('visible');
+  show('screen-nav');
+  showToast('🧭', `Navegando: ${tour.name}`);
+}
+
+/* ══════════════════════════════════════════════════
+   4. GALERÍA
+   ══════════════════════════════════════════════════ */
+function showGallery() {
+  renderGallery();
+  show('screen-gallery');
+}
+
+function renderGallery() {
+  const tours = loadTours();
+  const container = document.getElementById('gallery-list');
+  const subtitle = document.getElementById('gallery-subtitle');
+
+  subtitle.textContent = tours.length === 0
+    ? 'Sin recorridos guardados'
+    : `${tours.length} recorrido${tours.length !== 1 ? 's' : ''} guardado${tours.length !== 1 ? 's' : ''}`;
+
+  if (tours.length === 0) {
+    container.innerHTML = `
+      <div class="gallery-empty">
+        <div class="gallery-empty-icon">🗺️</div>
+        <div class="gallery-empty-title">No hay recorridos todavía</div>
+        <div class="gallery-empty-sub">Creá tu primer recorrido usando el<br>Modo Creador y volvé aquí.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = tours.map(tour => {
+    // Cover: primera imagen disponible
+    const coverPoi = tour.pois.find(p => p.img);
+    const coverHTML = coverPoi
+      ? `<img class="tour-card-cover" src="${coverPoi.img}" alt="${tour.name}" onerror="this.parentNode.innerHTML='<div class=\\'tour-card-cover-placeholder\\'>🗺️</div>'">`
+      : `<div class="tour-card-cover-placeholder">🗺️</div>`;
+
+    // Mini fotos de los POIs
+    const poisHtml = tour.pois.slice(0, 4).map(p =>
+      p.img
+        ? `<img class="tour-poi-mini" src="${p.img}" alt="${p.name}">`
+        : `<div class="tour-poi-mini-empty">📍</div>`
+    ).join('');
+    const moreHtml = tour.pois.length > 4
+      ? `<div class="tour-poi-more">+${tour.pois.length - 4}</div>` : '';
+
+    return `
+    <div class="tour-card" id="tourcard-${tour.id}">
+      ${coverHTML}
+      <div class="tour-card-body">
+        <div class="tour-card-name">${escHtml(tour.name)}</div>
+        <div class="tour-card-meta">
+          <span>📍 ${tour.pois.length} punto${tour.pois.length !== 1 ? 's' : ''}</span>
+          <span>📅 ${tour.created}</span>
+        </div>
+        <div class="tour-card-pois">${poisHtml}${moreHtml}</div>
+        <div class="tour-card-actions" style="margin-top:10px;">
+          <button class="tour-card-btn tour-btn-go" onclick="loadTourForNavigation('${tour.id}')">
+            🧭 Recorrer
+          </button>
+          <button class="tour-card-btn tour-btn-del" onclick="confirmDeleteTour('${tour.id}','${escHtml(tour.name)}')">
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function confirmDeleteTour(id, name) {
+  if (confirm(`¿Eliminar el recorrido "${name}"?`)) deleteTour(id);
+}
+
+function updateGalleryHomeBadge() {
+  const tours = loadTours();
+  const el = document.getElementById('gallery-home-sub');
+  if (el) el.textContent = tours.length === 0
+    ? 'Sin recorridos guardados'
+    : `${tours.length} recorrido${tours.length !== 1 ? 's' : ''} guardado${tours.length !== 1 ? 's' : ''}`;
+}
+
+/* ══════════════════════════════════════════════════
+   5. CREATOR V2 — fotos, EXIF, guardado
+   ══════════════════════════════════════════════════ */
+
+function showCreator() {
+  resetCreator();
+  show('screen-creator');
+}
+
+function resetCreator() {
+  APP.creatorPois = [];
+  APP.creatorPhotoDataUrl = null;
+  APP.creatorPhotoExifGPS = null;
+  APP.creatorFormOpen = false;
+
+  document.getElementById('creator-tour-name').value = '';
+  document.getElementById('creator-poi-name').value = '';
+  document.getElementById('creator-poi-desc').value = '';
+  document.getElementById('creator-poi-lat').value = '';
+  document.getElementById('creator-poi-lng').value = '';
+  document.getElementById('poi-photo-input').value = '';
+  document.getElementById('poi-photo-preview').classList.remove('visible');
+  document.getElementById('add-poi-form').classList.remove('visible');
+  document.getElementById('creator-save-btn').disabled = true;
+  document.getElementById('creator-save-hint').style.display = '';
+  document.getElementById('creator-poi-count').textContent = '0';
+  document.getElementById('creator-empty-msg') &&
+    (document.getElementById('creator-poi-list').innerHTML =
+      '<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:12px 0;" id="creator-empty-msg">Todavía no hay puntos. Agregá el primero.</p>');
+
+  // Resetear mapa del creator para reinicializar con nueva sesión
+  if (APP.creatorMap) {
+    APP.creatorMap.remove();
+    APP.creatorMap = null;
+    APP.creatorUserMarker = null;
+    APP.creatorPoiMarkers = [];
+  }
+}
+
+function toggleAddPoiForm() {
+  APP.creatorFormOpen = !APP.creatorFormOpen;
+  const form = document.getElementById('add-poi-form');
+  if (APP.creatorFormOpen) {
+    form.classList.add('visible');
+    // Pre-rellenar coords con GPS si disponible
+    if (APP.userLat && !document.getElementById('creator-poi-lat').value) {
+      document.getElementById('creator-poi-lat').value = (APP.userLat + 0.0005).toFixed(6);
+      document.getElementById('creator-poi-lng').value = (APP.userLng + 0.0005).toFixed(6);
+    }
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    form.classList.remove('visible');
+  }
+}
+
+function cancelAddPoi() {
+  APP.creatorFormOpen = false;
+  document.getElementById('add-poi-form').classList.remove('visible');
+  APP.creatorPhotoDataUrl = null;
+  APP.creatorPhotoExifGPS = null;
+  document.getElementById('poi-photo-preview').classList.remove('visible');
+  document.getElementById('poi-photo-input').value = '';
+}
+
+/**
+ * handlePhotoSelected — se ejecuta al seleccionar un archivo de imagen.
+ * 1. Muestra preview inmediata
+ * 2. Lee EXIF con exifr para extraer GPS
+ * 3. Si hay GPS en EXIF → rellena campos lat/lng
+ * 4. Si no hay GPS → usa ubicación actual del usuario
+ * 5. Redimensiona la imagen a max 500px para almacenamiento
+ */
+async function handlePhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('poi-photo-preview');
+  const previewImg = document.getElementById('poi-preview-img');
+  const badge = document.getElementById('exif-status-badge');
+
+  // Mostrar preview inmediata con Object URL
+  const objUrl = URL.createObjectURL(file);
+  previewImg.src = objUrl;
+  preview.classList.add('visible');
+  badge.className = 'exif-badge exif-none';
+  badge.textContent = 'Leyendo EXIF…';
+
+  // Leer EXIF GPS con exifr (asíncrono)
+  let exifGPS = null;
+  try {
+    if (typeof exifr !== 'undefined') {
+      const data = await exifr.gps(file); // solo pide GPS, muy liviano
+      if (data && data.latitude && data.longitude) {
+        exifGPS = { lat: data.latitude, lng: data.longitude };
+      }
+    }
+  } catch(e) { /* EXIF no disponible en este archivo */ }
+
+  if (exifGPS) {
+    // ✅ GPS encontrado en EXIF de la foto
+    document.getElementById('creator-poi-lat').value = exifGPS.lat.toFixed(6);
+    document.getElementById('creator-poi-lng').value = exifGPS.lng.toFixed(6);
+    APP.creatorPhotoExifGPS = exifGPS;
+    badge.className = 'exif-badge exif-gps';
+    badge.textContent = `GPS EXIF: ${exifGPS.lat.toFixed(4)}, ${exifGPS.lng.toFixed(4)}`;
+  } else if (APP.userLat) {
+    // ⬇️ Sin EXIF → usar posición GPS actual del dispositivo
+    document.getElementById('creator-poi-lat').value = (APP.userLat + 0.0005).toFixed(6);
+    document.getElementById('creator-poi-lng').value = (APP.userLng + 0.0005).toFixed(6);
+    APP.creatorPhotoExifGPS = null;
+    badge.className = 'exif-badge exif-ok';
+    badge.textContent = 'GPS del dispositivo';
+  } else {
+    badge.className = 'exif-badge exif-none';
+    badge.textContent = 'Sin GPS — ingresá coordenadas';
+  }
+
+  // Redimensionar y convertir a data URL (para persistencia)
+  APP.creatorPhotoDataUrl = await resizeImageToDataUrl(file, 500, 0.78);
+}
+
+/**
+ * resizeImageToDataUrl — redimensiona a maxSize px de ancho,
+ * convierte a JPEG con calidad q. Devuelve dataURL string.
+ * Permite guardar en localStorage sin saturarlo.
+ */
+function resizeImageToDataUrl(file, maxSize = 500, quality = 0.78) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+        if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(null);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Confirmar y agregar el POI al recorrido actual */
+function creatorAddPoiWithPhoto() {
+  const name = document.getElementById('creator-poi-name').value.trim();
+  const lat  = parseFloat(document.getElementById('creator-poi-lat').value);
+  const lng  = parseFloat(document.getElementById('creator-poi-lng').value);
+  const desc = document.getElementById('creator-poi-desc').value.trim();
+
+  if (!name) { showToast('⚠️', 'Ingresá un nombre para el punto'); return; }
+  if (isNaN(lat) || isNaN(lng)) { showToast('⚠️', 'Coordenadas inválidas'); return; }
+
+  const poi = {
+    id: `poi-${Date.now()}`,
+    name, lat, lng, desc,
+    img: APP.creatorPhotoDataUrl || null,
+    hasExifGPS: !!APP.creatorPhotoExifGPS,
+    color: '#22d68a',
+    emoji: '📍',
+  };
+
+  APP.creatorPois.push(poi);
+  addCreatorPoiToMap(poi);
+  renderCreatorPoiList();
+  cancelAddPoi();
+
+  // Habilitar guardar
+  document.getElementById('creator-save-btn').disabled = false;
+  document.getElementById('creator-save-hint').style.display = 'none';
+  document.getElementById('creator-poi-count').textContent = APP.creatorPois.length;
+
+  showToast('📍', `"${name}" agregado al recorrido`);
+}
+
+function renderCreatorPoiList() {
+  const container = document.getElementById('creator-poi-list');
+  if (APP.creatorPois.length === 0) {
+    container.innerHTML = '<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:12px 0;" id="creator-empty-msg">Todavía no hay puntos. Agregá el primero.</p>';
+    return;
+  }
+  container.innerHTML = APP.creatorPois.map((poi, i) => `
+    <div class="creator-poi-item">
+      ${poi.img
+        ? `<img class="creator-poi-thumb" src="${poi.img}" alt="${escHtml(poi.name)}">`
+        : `<div class="creator-poi-thumb-empty">📍</div>`
+      }
+      <div class="creator-poi-info">
+        <div class="creator-poi-name">${escHtml(poi.name)}</div>
+        <div class="creator-poi-coords">${poi.lat.toFixed(4)}, ${poi.lng.toFixed(4)}</div>
+        ${poi.hasExifGPS ? '<div class="creator-poi-exif">● GPS desde foto</div>' : ''}
+      </div>
+      <button class="btn btn-danger" onclick="creatorDeletePoi(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function creatorDeletePoi(i) {
+  APP.creatorPois.splice(i, 1);
+  renderCreatorPoiList();
+  document.getElementById('creator-poi-count').textContent = APP.creatorPois.length;
+  if (APP.creatorPois.length === 0) {
+    document.getElementById('creator-save-btn').disabled = true;
+    document.getElementById('creator-save-hint').style.display = '';
+  }
+  // Refresh mapa del creator
+  refreshCreatorMapPois();
+}
+
+/**
+ * saveTour — guarda el recorrido actual en localStorage
+ */
+function saveTour() {
+  if (APP.creatorPois.length === 0) return;
+
+  const rawName = document.getElementById('creator-tour-name').value.trim();
+  const name = rawName || `Recorrido ${new Date().toLocaleDateString('es-AR')}`;
+
+  const tour = {
+    id: `tour-${Date.now()}`,
+    name,
+    created: new Date().toLocaleDateString('es-AR'),
+    pois: APP.creatorPois.map(p => ({ ...p })),
+  };
+
+  const tours = loadTours();
+  tours.push(tour);
+  persistTours(tours);
+  updateGalleryHomeBadge();
+
+  showToast('✅', `"${name}" guardado con ${tour.pois.length} puntos`);
+
+  // Ofrecer ir a galería
+  setTimeout(() => {
+    if (confirm(`✅ Recorrido "${name}" guardado.\n¿Ir a Mis Recorridos?`)) {
+      showGallery();
+    } else {
+      resetCreator();
+    }
+  }, 600);
+}
+
+/* ══════════════════════════════════════════════════
+   6. NAVEGACIÓN ENTRE PANTALLAS
+   ══════════════════════════════════════════════════ */
+function show(screenId) {
+  document.querySelectorAll('.screen:not(#screen-ar)').forEach(s => s.classList.remove('active'));
+  const t = document.getElementById(screenId);
+  if (t) t.classList.add('active');
+
+  if (screenId === 'screen-nav') {
+    setTimeout(() => initNavMap(), 80);
+    startGPS();
+  }
+  if (screenId === 'screen-creator') {
+    setTimeout(() => initCreatorMap(), 80);
+  }
+}
+
+function goHotel() { show('screen-hotel'); }
+
+/* ══════════════════════════════════════════════════
+   7. SELECCIÓN DE SERVICIO HOTEL
+   ══════════════════════════════════════════════════ */
+function selectSvc(id) {
+  const svc = HOTEL_POIS[id];
+  if (!svc) return;
+  APP.selectedSvc = svc;
+
+  document.getElementById('nav-title-display').textContent = svc.name;
+  document.getElementById('arr-title-display').textContent = svc.name;
+  document.getElementById('arr-desc-display').textContent = svc.desc;
+  document.getElementById('arr-action-btn').textContent = svc.action;
+  document.getElementById('arr-action-btn').dataset.done = '0';
+
+  // Arrival icon: imagen si hay, emoji si no
+  const arrImg = document.getElementById('arrival-poi-img');
+  const arrEmoji = document.getElementById('arrival-icon-emoji');
+  if (svc.img) {
+    arrImg.src = svc.img; arrImg.style.display = 'block'; arrEmoji.style.display = 'none';
+  } else {
+    arrImg.style.display = 'none'; arrEmoji.style.display = ''; arrEmoji.textContent = svc.emoji;
+  }
+
+  document.getElementById('proximity-alert').classList.remove('visible');
+  resetNavMap();
+  show('screen-nav');
+}
+
+function handleAction() {
+  const btn = document.getElementById('arr-action-btn');
+  if (btn.dataset.done === '1') return;
+  btn.dataset.done = '1';
+  btn.textContent = '✓ Solicitud enviada';
+  btn.style.background = 'var(--green-glow)';
+  btn.style.border = '1px solid rgba(34,214,138,.4)';
+  btn.style.color = 'var(--green)';
+}
+
+/* ══════════════════════════════════════════════════
+   8. GPS — navigator.geolocation
+   ══════════════════════════════════════════════════ */
+function startGPS() {
+  if (!navigator.geolocation) { updateGPSStatus('error','No disponible'); useFallback(); return; }
+  updateGPSStatus('wait','Buscando GPS…');
+  navigator.geolocation.getCurrentPosition(onGPSOk, onGPSErr, { enableHighAccuracy: true, timeout: 8000 });
+  APP.geoWatchId = navigator.geolocation.watchPosition(onGPSOk, onGPSErr, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
+}
+function stopNav() {
+  if (APP.geoWatchId !== null) { navigator.geolocation.clearWatch(APP.geoWatchId); APP.geoWatchId = null; }
+}
+function onGPSOk(pos) {
+  APP.userLat = pos.coords.latitude; APP.userLng = pos.coords.longitude;
+  APP.userAccuracy = Math.round(pos.coords.accuracy);
+  updateGPSStatus('ok', `±${APP.userAccuracy}m`);
+  updateNavMap(); updateDistances();
+}
+function onGPSErr(err) { console.warn('GPS:', err.message); useFallback(); }
+function useFallback() {
+  APP.userLat = -41.1335; APP.userLng = -71.3103; APP.userAccuracy = 999;
+  updateGPSStatus('wait','Demo GPS'); updateNavMap(); updateDistances();
+}
+function updateGPSStatus(type, text) {
+  const el = document.getElementById('gps-status'); if (!el) return;
+  el.className = `gps-badge ${type==='ok'?'gps-ok':type==='error'?'gps-off':'gps-wait'}`;
+  el.textContent = (type==='ok'?'◉ ':'')+text;
+}
+
+/* ══════════════════════════════════════════════════
+   9. HAVERSINE + RUMBO
+   ══════════════════════════════════════════════════ */
+function haversine(la1, lo1, la2, lo2) {
+  const R = 6371000, r = d => d*Math.PI/180;
+  const dLa=r(la2-la1), dLo=r(lo2-lo1);
+  const a = Math.sin(dLa/2)**2 + Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function calcBearing(la1, lo1, la2, lo2) {
+  const r=d=>d*Math.PI/180, d=r=>r*180/Math.PI;
+  const dLo=r(lo2-lo1);
+  const y=Math.sin(dLo)*Math.cos(r(la2));
+  const x=Math.cos(r(la1))*Math.sin(r(la2))-Math.sin(r(la1))*Math.cos(r(la2))*Math.cos(dLo);
+  return (d(Math.atan2(y,x))+360)%360;
+}
+function bearingToText(deg) {
+  return ['N','NE','E','SE','S','SO','O','NO'][Math.round(deg/45)%8];
+}
+
+/* ══════════════════════════════════════════════════
+   10. ACTUALIZAR DISTANCIAS EN UI
+   ══════════════════════════════════════════════════ */
+function updateDistances() {
+  if (!APP.selectedSvc || APP.userLat === null) return;
+  const dist = haversine(APP.userLat, APP.userLng, APP.selectedSvc.lat, APP.selectedSvc.lng);
+  const bearing = calcBearing(APP.userLat, APP.userLng, APP.selectedSvc.lat, APP.selectedSvc.lng);
+  const dr = Math.round(dist);
+
+  const dEl = document.getElementById('dist-value');
+  if (dEl) { dEl.textContent = dr < 1000 ? `${dr}m` : `${(dist/1000).toFixed(1)}km`; dEl.className='dist-card-value'+(dr<100?' warn':''); }
+  const bEl = document.getElementById('bearing-value'); if (bEl) bEl.textContent = `${bearingToText(bearing)} ${Math.round(bearing)}°`;
+  const aEl = document.getElementById('accuracy-value'); if (aEl) aEl.textContent = APP.userAccuracy < 900 ? `±${APP.userAccuracy}m` : 'Demo';
+
+  const arrow = document.getElementById('nav-arrow-svg'); if (arrow) arrow.style.transform = `rotate(${bearing}deg)`;
+  const alert = document.getElementById('proximity-alert'); if (alert) alert.classList.toggle('visible', dr < 50);
+  updateARHUD(dr, bearing);
+}
+
+/* ══════════════════════════════════════════════════
+   11. MAPA LEAFLET — Navegación
+   ══════════════════════════════════════════════════ */
+function resetNavMap() {
+  if (APP.navMap) { APP.navMap.remove(); APP.navMap = null; APP.userMarker = null; APP.poiMarkers = []; }
+}
+
+function initNavMap() {
+  if (APP.navMap) return;
+  const el = document.getElementById('leaflet-map'); if (!el) return;
+  const la = APP.userLat ?? -41.1335, lo = APP.userLng ?? -71.3103;
+
+  APP.navMap = L.map('leaflet-map', { center:[la,lo], zoom:17, zoomControl:false, attributionControl:false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(APP.navMap);
+
+  const userIcon = L.divIcon({ html:`<div style="width:14px;height:14px;border-radius:50%;background:var(--green);border:2.5px solid white;box-shadow:0 0 10px rgba(34,214,138,.6);"></div>`, className:'', iconSize:[14,14], iconAnchor:[7,7] });
+  APP.userMarker = L.marker([la,lo], { icon:userIcon }).bindPopup('<strong style="color:#fff;">📍 Estás aquí</strong>').addTo(APP.navMap);
+
+  if (APP.selectedSvc) addPoiMarkerToNavMap(APP.selectedSvc);
+}
+
+function addPoiMarkerToNavMap(poi) {
+  if (!APP.navMap) return;
+  const hasImg = !!poi.img;
+  const poiIcon = L.divIcon({
+    html: `<div style="width:36px;height:36px;border-radius:50%;background:${poi.color||'#22d68a'};display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid white;box-shadow:0 0 12px ${poi.color||'#22d68a'}88;overflow:hidden;">
+      ${hasImg ? `<img src="${poi.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (poi.emoji||'📍')}
+    </div>`,
+    className:'', iconSize:[36,36], iconAnchor:[18,18],
+  });
+
+  const imgPopup = poi.img ? `<img src="${poi.img}" class="popup-img" onerror="this.style.display='none'">` : '';
+  const marker = L.marker([poi.lat, poi.lng], { icon:poiIcon }).addTo(APP.navMap)
+    .bindPopup(`${imgPopup}<div class="popup-title">${poi.name}</div><div class="popup-desc">${poi.desc||''}</div><div class="popup-dist" id="popup-dist-${poi.id}">Calculando…</div>`);
+
+  APP.poiMarkers.push(marker);
+
+  // Línea punteada usuario → POI
+  const line = L.polyline([[APP.userLat??-41.1335, APP.userLng??-71.3103],[poi.lat,poi.lng]], { color:poi.color||'#22d68a', weight:2, opacity:.45, dashArray:'5,9' }).addTo(APP.navMap);
+  APP.poiMarkers.push(line);
+
+  APP.navMap.fitBounds(L.latLngBounds([[APP.userLat??-41.1335,APP.userLng??-71.3103],[poi.lat,poi.lng]]), { padding:[28,28] });
+}
+
+function updateNavMap() {
+  if (!APP.navMap) { if (document.getElementById('leaflet-map')) initNavMap(); return; }
+  if (APP.userLat === null) return;
+  APP.userMarker?.setLatLng([APP.userLat, APP.userLng]);
+  APP.navMap.panTo([APP.userLat, APP.userLng], { animate:true, duration:.5 });
+  if (APP.selectedSvc) {
+    const d = Math.round(haversine(APP.userLat,APP.userLng,APP.selectedSvc.lat,APP.selectedSvc.lng));
+    const el = document.getElementById(`popup-dist-${APP.selectedSvc.id}`);
+    if (el) el.textContent = `📍 A ${d}m de aquí`;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   12. MAPA LEAFLET — Creator
+   ══════════════════════════════════════════════════ */
+function initCreatorMap() {
+  if (APP.creatorMap) return;
+  const el = document.getElementById('creator-map'); if (!el) return;
+  const la = APP.userLat ?? -41.1335, lo = APP.userLng ?? -71.3103;
+
+  APP.creatorMap = L.map('creator-map', { center:[la,lo], zoom:15, zoomControl:false, attributionControl:false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(APP.creatorMap);
+
+  const icon = L.divIcon({ html:`<div style="width:12px;height:12px;border-radius:50%;background:var(--gold);border:2px solid white;box-shadow:0 0 8px rgba(232,184,75,.6);"></div>`, className:'', iconSize:[12,12], iconAnchor:[6,6] });
+  APP.creatorUserMarker = L.marker([la,lo],{icon}).bindPopup('<strong>📍 Tu posición</strong>').addTo(APP.creatorMap);
+
+  // Click en mapa → rellena coords
+  APP.creatorMap.on('click', e => {
+    document.getElementById('creator-poi-lat').value = e.latlng.lat.toFixed(6);
+    document.getElementById('creator-poi-lng').value = e.latlng.lng.toFixed(6);
+    if (APP.creatorFormOpen) showToast('📍','Coordenadas actualizadas');
+  });
+}
+
+function addCreatorPoiToMap(poi) {
+  if (!APP.creatorMap) return;
+  const hasImg = !!poi.img;
+  const icon = L.divIcon({
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:${poi.color};display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 0 8px ${poi.color}66;overflow:hidden;">
+      ${hasImg ? `<img src="${poi.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : poi.emoji}
+    </div>`,
+    className:'', iconSize:[32,32], iconAnchor:[16,16],
+  });
+  const m = L.marker([poi.lat,poi.lng],{icon})
+    .bindPopup(`<div class="popup-title">${poi.name}</div>`)
+    .addTo(APP.creatorMap);
+  APP.creatorPoiMarkers.push(m);
+  APP.creatorMap.panTo([poi.lat,poi.lng],{animate:true});
+}
+
+function refreshCreatorMapPois() {
+  if (!APP.creatorMap) return;
+  APP.creatorPoiMarkers.forEach(m => m.remove());
+  APP.creatorPoiMarkers = [];
+  APP.creatorPois.forEach(p => addCreatorPoiToMap(p));
+}
+
+/* ══════════════════════════════════════════════════
+   13. AR VIEW — cámara + overlay con imagen real
+   ══════════════════════════════════════════════════ */
+async function openARView() {
+  const arScreen = document.getElementById('screen-ar');
+  document.body.appendChild(arScreen); // Sale del phone shell → fullscreen
+  arScreen.style.display = 'flex';
+
+  initARCompass();
+
+  // Poblar el overlay con datos REALES del POI seleccionado
+  if (APP.selectedSvc) {
+    const poi = APP.selectedSvc;
+    document.getElementById('ar-poi-icon').textContent = poi.emoji || '📍';
+    document.getElementById('ar-poi-name').textContent = poi.name;
+    document.getElementById('ar-poi-desc').textContent = poi.desc || '';
+
+    // Imagen real del POI (de foto subida o URL del hotel)
+    const arImg = document.getElementById('ar-poi-img');
+    if (poi.img) {
+      arImg.src = poi.img;
+      arImg.classList.remove('hidden');
+    } else {
+      arImg.classList.add('hidden');
+    }
+
+    if (APP.userLat) {
+      const d = Math.round(haversine(APP.userLat,APP.userLng,poi.lat,poi.lng));
+      const b = calcBearing(APP.userLat,APP.userLng,poi.lat,poi.lng);
+      updateARHUD(d, b);
+    }
+  }
+
+  // Activar cámara trasera
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }, audio:false,
+    });
+    APP.arStream = stream;
+    document.getElementById('ar-video').srcObject = stream;
+  } catch(e) { console.warn('Cámara no disponible:', e.message); }
+}
+
+function closeARView() {
+  const arScreen = document.getElementById('screen-ar');
+  arScreen.style.display = 'none';
+  document.getElementById('phone').appendChild(arScreen);
+  if (APP.arStream) { APP.arStream.getTracks().forEach(t=>t.stop()); APP.arStream=null; document.getElementById('ar-video').srcObject=null; }
+  if (APP.arHeadingTimer) { clearInterval(APP.arHeadingTimer); APP.arHeadingTimer=null; }
+}
+
+function openARScan() {
+  if (!APP.selectedSvc) APP.selectedSvc = HOTEL_POIS.spa;
+  openARView();
+}
+
+function updateARHUD(dist, bearing) {
+  const d=document.getElementById('ar-dist-big'); if(d) d.textContent = dist<1000?dist:`${(dist/1000).toFixed(1)}k`;
+  const pd=document.getElementById('ar-poi-dist'); if(pd) pd.textContent=`${dist}m`;
+  const b=document.getElementById('ar-bearing-chip'); if(b) b.textContent=`${bearingToText(bearing)} ${Math.round(bearing)}°`;
+}
+
+function initARCompass() {
+  const dirs=['N','NE','E','SE','S','SO','O','NO'];
+  const c=document.getElementById('ar-compass-dirs'); if(!c) return;
+  c.innerHTML=[...dirs,...dirs,...dirs].map(d=>`<div class="ar-compass-dir ${d==='N'?'north':''}">${d}</div>`).join('');
+  let h=15, dir=1;
+  APP.arHeadingTimer = setInterval(()=>{
+    h+=dir*.35; if(h>40)dir=-1; if(h<5)dir=1;
+    c.style.transform=`translateX(calc(50% + ${-(h/360)*(dirs.length*50)}px))`;
+  },50);
+  if(typeof DeviceOrientationEvent!=='undefined'){
+    const fn=e=>{if(e.alpha!==null){clearInterval(APP.arHeadingTimer);c.style.transform=`translateX(calc(50% + ${-(e.alpha/360)*(dirs.length*50)}px))`;}};
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      DeviceOrientationEvent.requestPermission().then(p=>{if(p==='granted')window.addEventListener('deviceorientation',fn);}).catch(()=>{});
+    } else { window.addEventListener('deviceorientation',fn); }
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   14. TOAST — notificación suave
+   ══════════════════════════════════════════════════ */
+let toastTimer = null;
+function showToast(icon, text) {
+  const t=document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-text').textContent = text;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ══════════════════════════════════════════════════
+   15. UTILIDADES
+   ══════════════════════════════════════════════════ */
+/** Escapar HTML para evitar XSS en contenido del usuario */
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════════════
+   16. INICIALIZACIÓN
+   ══════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  show('screen-home');
+  updateGalleryHomeBadge();
+
+  // Pre-cargar GPS silenciosamente
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => { APP.userLat=pos.coords.latitude; APP.userLng=pos.coords.longitude; APP.userAccuracy=Math.round(pos.coords.accuracy); },
+      ()=>{},
+      { enableHighAccuracy:false, timeout:5000 }
+    );
+  }
+});
+</script>
+</body>
+</html>
