@@ -633,10 +633,11 @@ label.lbl {
 
   <div class="home-hero">
     <!-- LOGO V2 desde GitHub — header principal -->
-  <img id="logo-v2-main"
-  alt="Patagonia 360"
-  class="home-logo-v2"
-  />
+    <img id="logo-v2-main"
+      src="https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png"
+      alt="Patagonia 360"
+      class="home-logo-v2"
+      onerror="this.onerror=null;this.style.display='none';document.getElementById('logo-v2-fallback').style.display='flex';">
     <!-- Fallback si el logo no carga -->
     <div id="logo-v2-fallback" style="display:none;justify-content:center;align-items:center;gap:10px;margin-bottom:6px;">
       <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(34,214,138,.2),rgba(232,184,75,.12));border:1.5px solid rgba(232,184,75,.4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 18px rgba(232,184,75,.14);">◬</div>
@@ -844,7 +845,7 @@ label.lbl {
 <div id="screen-ar" class="screen">
   <video id="ar-video" autoplay playsinline muted></video>
 
- <div id="ar-direction-arrow">↑</div>
+  <div class="ar-hud">
     <!-- Top bar -->
     <div class="ar-topbar">
       <button class="ar-close" onclick="closeAR()">✕ Cerrar AR</button>
@@ -1834,22 +1835,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Activar orientación del dispositivo (para flecha AR)
   startOrientation();
 });
-</script> 
-
-     <script>
-function loadLogos() {
-  const logo = document.getElementById('logo-v2-main');
-
-  const primary = "https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png";
-  const fallback = "https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/LogoV2.png";
-
-  const img = new Image();
-  img.onload = () => logo.src = primary;
-  img.onerror = () => logo.src = fallback;
-  img.src = primary;
-}
-
-window.addEventListener('load', loadLogos);
 </script>
 </body>
 </html>
