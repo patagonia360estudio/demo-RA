@@ -698,7 +698,7 @@ label.lbl {
   <div class="home-hero">
     <!-- LOGO V2 desde GitHub — header principal -->
     <img id="logo-v2-main"
-      src="https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png"
+      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/LogoV2.png">
       alt="Patagonia 360"
       class="home-logo-v2"
       onerror="this.onerror=null;this.style.display='none';document.getElementById('logo-v2-fallback').style.display='flex';">
@@ -1324,6 +1324,8 @@ function updateDistances() {
   const bear  = bearing(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng);
   const distR = Math.round(dist);
 
+     updateARDirection();
+
   // HUD
   const dEl = document.getElementById('dist-val');
   if (dEl) {
@@ -1574,7 +1576,109 @@ async function openARView() {
   document.body.appendChild(scr); // fullscreen fuera del phone
   scr.style.display = 'flex';
 
-  initARCompass();
+     initOrientation();
+
+     /* ──────────────────────────────────────
+   ORIENTACIÓN REAL + FLECHA AR
+────────────────────────────────────── */
+function initOrientation() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === "granted") {
+          window.addEventListener("deviceorientation", onOrientation);
+        }
+      })
+      .catch(console.error);
+
+  } else {
+    window.addEventListener("deviceorientation", onOrientation);
+  }
+}
+
+function onOrientation(e) {
+  if (e.alpha === null) return;
+
+  // heading del dispositivo (0 = norte)
+  APP.deviceHeading = e.alpha;
+
+  updateARDirection();
+}
+
+function updateARDirection() {
+  if (!APP.svc || APP.userLat === null) return;
+
+  const brng = bearing(
+    APP.userLat,
+    APP.userLng,
+    APP.svc.lat,
+    APP.svc.lng
+  );
+
+  const heading = APP.deviceHeading || 0;
+
+  // Diferencia = hacia dónde girar la flecha
+  let rotation = brng - heading;
+
+  const arrow = document.getElementById("ar-direction-arrow");
+  if (arrow) {
+    arrow.style.transform =
+      `translate(-50%, -50%) rotate(${rotation}deg)`;
+  }
+}
+
+ /* ──────────────────────────────────────
+   ORIENTACIÓN REAL + FLECHA AR
+────────────────────────────────────── */
+function initOrientation() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === "granted") {
+          window.addEventListener("deviceorientation", onOrientation);
+        }
+      })
+      .catch(console.error);
+
+  } else {
+    window.addEventListener("deviceorientation", onOrientation);
+  }
+}
+
+function onOrientation(e) {
+  if (e.alpha === null) return;
+
+  // heading del dispositivo (0 = norte)
+  APP.deviceHeading = e.alpha;
+
+  updateARDirection();
+}
+
+function updateARDirection() {
+  if (!APP.svc || APP.userLat === null) return;
+
+  const brng = bearing(
+    APP.userLat,
+    APP.userLng,
+    APP.svc.lat,
+    APP.svc.lng
+  );
+
+  const heading = APP.deviceHeading || 0;
+
+  // Diferencia = hacia dónde girar la flecha
+  let rotation = brng - heading;
+
+  const arrow = document.getElementById("ar-direction-arrow");
+  if (arrow) {
+    arrow.style.transform =
+      `translate(-50%, -50%) rotate(${rotation}deg)`;
+  }
+}
 
   // Poblar overlay con datos del POI actual
   if (APP.svc) {
@@ -2075,6 +2179,62 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─ Cargar recorrido desde URL si viene con ?tour= ─
   loadTourFromURL();
 });
+
+     /* ──────────────────────────────────────
+   ORIENTACIÓN REAL + FLECHA AR
+────────────────────────────────────── */
+function initOrientation() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === "granted") {
+          window.addEventListener("deviceorientation", onOrientation);
+        }
+      })
+      .catch(console.error);
+
+  } else {
+    window.addEventListener("deviceorientation", onOrientation);
+  }
+}
+
+function onOrientation(e) {
+  if (e.alpha === null) return;
+
+  // heading del dispositivo (0 = norte)
+  APP.deviceHeading = e.alpha;
+
+  updateARDirection();
+}
+
+function updateARDirection() {
+  if (!APP.svc || APP.userLat === null) return;
+
+  const brng = bearing(
+    APP.userLat,
+    APP.userLng,
+    APP.svc.lat,
+    APP.svc.lng
+  );
+
+  const heading = APP.deviceHeading || 0;
+
+  // Diferencia = hacia dónde girar la flecha
+  let rotation = brng - heading;
+
+  const arrow = document.getElementById("ar-direction-arrow");
+  if (arrow) {
+    arrow.style.transform =
+      `translate(-50%, -50%) rotate(${rotation}deg)`;
+
+document.addEventListener("DOMContentLoaded", function() {
+  console.log("LOGOS CARGANDO...");
+  loadLogos();
+});
+  }
+}
 </script>
 </body>
 </html>
