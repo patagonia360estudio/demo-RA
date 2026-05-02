@@ -695,17 +695,30 @@ label.lbl {
   <!-- Glow ambiental -->
   <div style="position:absolute;width:320px;height:320px;border-radius:50%;background:radial-gradient(#1a5030,transparent);top:-120px;left:-80px;pointer-events:none;opacity:.35;"></div>
 
-  <div class="home-hero">
-    <!-- LOGO V2 desde GitHub — header principal -->
-    <img id="logo-v2-main"
-      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/LogoV2.png">
-      alt="Patagonia 360"
-      class="home-logo-v2"
-      onerror="this.onerror=null;this.style.display='none';document.getElementById('logo-v2-fallback').style.display='flex';">
-    <!-- Fallback si el logo no carga -->
-    <div id="logo-v2-fallback" style="display:none;justify-content:center;align-items:center;gap:10px;margin-bottom:6px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(34,214,138,.2),rgba(232,184,75,.12));border:1.5px solid rgba(232,184,75,.4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 18px rgba(232,184,75,.14);">◬</div>
-      <div>
+<div class="home-hero">
+
+  <!-- LOGO PRINCIPAL -->
+  <img id="logo-v2-main"
+    src="imagen/LogoV2.png"
+    alt="Patagonia 360"
+    class="home-logo-v2"
+    onerror="this.style.display='none';document.getElementById('logo-v2-fallback').style.display='flex';">
+
+  <!-- FALLBACK -->
+  <div id="logo-v2-fallback"
+    style="display:none;justify-content:center;align-items:center;gap:10px;margin-bottom:6px;">
+
+    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(34,214,138,.2),rgba(232,184,75,.12));border:1.5px solid rgba(232,184,75,.4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 18px rgba(232,184,75,.14);">
+      ◬
+    </div>
+
+    <div style="font-weight:700;color:#fff;">
+      Patagonia <span style="color:#22d68a;">360</span>
+    </div>
+
+  </div>
+
+</div>
         <div style="font-family:var(--ff-display);font-size:28px;color:#fff;letter-spacing:-.02em;">Patagonia <span style="color:var(--green);">360</span></div>
         <div style="font-size:11px;color:var(--text-2);letter-spacing:.1em;text-transform:uppercase;">Estudio de Imágenes</div>
       </div>
