@@ -2,2137 +2,238 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#021a10">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Patagonia 360 · Experiencias Inmersivas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Patagonia 360</title>
 
-<!-- ═══════════════════════════════════════════════
-     DEPENDENCIAS EXTERNAS
-     ═══════════════════════════════════════════════ -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/exifr@7.1.3/dist/lite.umd.js"></script>
-
-<!-- ═══════════════════════════════════════════════
-     LOGOS — GitHub RAW (sin caché de CDN)
-     LogoV1 = ícono circular
-     LogoV2 = logo completo con texto
-     logoMed = versión mediana
-     ═══════════════════════════════════════════════ -->
-<script>
-  /* ─────────────────────────────────────────
-     LOGOS — estrategia de 3 fuentes por imagen:
-       1. jsDelivr CDN  → src inicial en el HTML (más rápido, sin CORS)
-       2. raw.github    → primer onerror en el HTML
-       3. SVG inline    → segundo onerror en el HTML (siempre visible)
-
-     loadLogos() es un refuerzo opcional que solo actúa
-     si el src está vacío (ej: cargado desde archivo local sin red).
-  ───────────────────────────────────────── */
-  const LOGOS = {
-    v1:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV1.png',
-    v2:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV2.png',
-    med: 'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/logoMed.png',
-  };
-
-  function loadLogos() {
-    // Solo actúa si el elemento existe y su src está vacío o es el mismo dominio
-    // (evita sobreescribir si el HTML ya tiene la URL correcta y está cargando)
-    const map = { 'logo-v2-main': LOGOS.v2, 'hotel-logo-med': LOGOS.med };
-    Object.entries(map).forEach(([id, url]) => {
-      const el = document.getElementById(id);
-      if (el && el.tagName === 'IMG' && (!el.src || el.src === location.href)) {
-        el.src = url;
-      }
-    });
-  }
-</script>
 
 <style>
-/* ═══════════════════════════════════════════════
-   VARIABLES MARCA PATAGONIA 360
-   ═══════════════════════════════════════════════ */
 :root {
-  /* Colores */
-  --bg:         #021a10;
-  --bg2:        #041e12;
-  --surface:    #071f12;
-  --surface2:   #0a2415;
-  --border:     #143d20;
-  --border2:    #1e5030;
-  --green:      #22d68a;
-  --green2:     #1ab872;
-  --green-glow: rgba(34,214,138,.14);
-  --gold:       #e8b84b;
-  --gold2:      #c99e38;
-  --text:       #d8eed8;
-  --text-2:     #9abba0;
-  --text-3:     #3a5e42;
-  --danger:     #f05555;
-  --blue:       #5ca8e8;
-  /* Tipografía */
+  --bg: #021a10;
+  --surface: #0a2415;
+  --border: #143d20;
+  --green: #22d68a;
+  --gold: #e8b84b;
+  --text: #d8eed8;
+  --text2: #9abba0;
   --ff-display: 'Syne', sans-serif;
-  --ff-body:    'DM Sans', sans-serif;
-  /* Radios */
-  --r:     14px;
-  --r-sm:  9px;
-  --r-pill:99px;
+  --ff-body: 'DM Sans', sans-serif;
 }
 
-/* ─── Reset ─── */
-*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+/* 🔥 FIX MOBILE REAL */
 html, body {
-  height:100%; width:100%;
-  background: radial-gradient(ellipse at 30% 20%, #0d3520 0%, #091608 60%, #040e06 100%);
-  display:flex; align-items:center; justify-content:center;
-  font-family: var(--ff-body);
-  overflow:hidden;
-}
-
-/* ═══════════════════════════════════════════════
-   PHONE SHELL
-   ═══════════════════════════════════════════════ */
-#phone {
-  position:relative;
-  width: min(390px, 100vw);
-  height: min(800px, 100dvh);
-  background: var(--bg);
-  border-radius: clamp(0px, 4vw, 36px);
-  border: 1.5px solid var(--border);
-  overflow: hidden;
-  box-shadow:
-    0 32px 80px rgba(0,0,0,.7),
-    0 0 0 1px rgba(34,214,138,.07),
-    inset 0 1px 0 rgba(255,255,255,.04);
-  display:flex; flex-direction:column;
-}
-
-/* Montañas SVG decorativas en el fondo */
-#phone::after {
-  content:'';
-  position:absolute; bottom:0; left:0; right:0; height:200px;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 200' preserveAspectRatio='none'%3E%3Cpolygon points='0,200 65,70 130,115 200,28 270,98 340,52 390,78 390,200' fill='%230a2415' opacity='.9'/%3E%3Cpolygon points='0,200 0,160 50,138 100,155 160,125 215,142 268,120 320,138 390,118 390,200' fill='%23071f12'/%3E%3C/svg%3E") bottom/cover no-repeat;
-  pointer-events:none; z-index:0;
-}
-
-/* ═══════════════════════════════════════════════
-   SISTEMA DE PANTALLAS
-   ═══════════════════════════════════════════════ */
-.screen {
-  display:none; flex-direction:column;
-  flex:1; overflow-y:auto; overflow-x:hidden;
-  padding:52px 22px 38px;
-  position:relative; z-index:1;
-  scrollbar-width:none;
-}
-.screen::-webkit-scrollbar { display:none; }
-.screen.active {
-  display:flex;
-  animation: s-in .24s cubic-bezier(.2,.8,.2,1);
-}
-@keyframes s-in {
-  from { opacity:0; transform:translateY(10px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-
-/* ═══════════════════════════════════════════════
-   COMPONENTES GLOBALES — Botones
-   ═══════════════════════════════════════════════ */
-.btn {
-  width:100%; padding:16px 20px;
-  border-radius:var(--r);
-  font-family:var(--ff-body); font-size:15px; font-weight:600;
-  cursor:pointer; border:none;
-  transition:all .16s ease;
-  display:flex; align-items:center; justify-content:center; gap:10px;
-  letter-spacing:.01em; position:relative; overflow:hidden;
-}
-.btn::after { /* ripple layer */
-  content:''; position:absolute; inset:0;
-  background:rgba(255,255,255,.06); opacity:0;
-  transition:opacity .12s;
-}
-.btn:active::after { opacity:1; }
-
-/* Variantes */
-.btn-green  { background:var(--green); color:#011a0d; font-weight:700; }
-.btn-green:hover { background:var(--green2); }
-.btn-green:disabled { opacity:.35; cursor:not-allowed; }
-
-.btn-gold   { background:var(--gold); color:#1a0e00; font-weight:700; }
-.btn-gold:hover { filter:brightness(1.08); }
-.btn-gold:disabled { opacity:.35; cursor:not-allowed; }
-
-.btn-outline {
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--border2); color:var(--text);
-}
-.btn-outline:hover { background:rgba(255,255,255,.08); }
-
-.btn-ar {
-  background:linear-gradient(135deg,rgba(34,214,138,.1),rgba(34,214,138,.2));
-  border:1px solid rgba(34,214,138,.38); color:var(--green); font-weight:700;
-}
-.btn-ar:hover { background:rgba(34,214,138,.22); }
-
-.btn-ghost {
-  background:none; border:none; color:var(--text-2);
-  font-size:13px; padding:0; width:auto; cursor:pointer;
-  font-family:var(--ff-body);
-  display:inline-flex; align-items:center; gap:5px;
-  margin-bottom:18px;
-}
-.btn-ghost:hover { color:var(--text); }
-
-.btn-danger {
-  background:rgba(240,85,85,.07);
-  border:1px solid rgba(240,85,85,.22);
-  color:var(--danger); font-size:12px; padding:8px 13px; width:auto;
-}
-.btn-danger:hover { background:rgba(240,85,85,.13); }
-
-/* Botón inteligente: cambia estilo según distancia */
-#smart-action-btn.close-mode  { background:var(--green); color:#011a0d; font-weight:800; }
-#smart-action-btn.far-mode    { background:rgba(255,255,255,.06); border:1px solid var(--border2); color:var(--text); }
-
-/* ─── Tarjetas ─── */
-.card {
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:var(--r); padding:15px 16px;
-}
-.card-gold  { border-color:rgba(232,184,75,.3); background:rgba(232,184,75,.04); }
-.card-green { border-color:rgba(34,214,138,.22); background:rgba(34,214,138,.04); }
-
-/* ─── Chips ─── */
-.chip {
-  display:inline-flex; align-items:center; gap:5px;
-  border-radius:var(--r-pill); font-size:10px; font-weight:700;
-  padding:4px 10px; letter-spacing:.07em; text-transform:uppercase;
-}
-.chip-green { background:rgba(34,214,138,.12); color:var(--green); border:1px solid rgba(34,214,138,.28); }
-.chip-gold  { background:rgba(232,184,75,.12); color:var(--gold); border:1px solid rgba(232,184,75,.28); }
-.chip-blue  { background:rgba(92,168,232,.12); color:var(--blue); border:1px solid rgba(92,168,232,.28); }
-.chip-live  { background:rgba(34,214,138,.12); color:var(--green); border:1px solid rgba(34,214,138,.28); }
-.chip-live::before { content:'●'; font-size:7px; animation:blink 1.5s ease-in-out infinite; }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-/* ─── Inputs ─── */
-.input {
-  width:100%; background:var(--surface2); border:1px solid var(--border2);
-  border-radius:var(--r-sm); padding:12px 14px; color:var(--text);
-  font-size:13px; font-family:var(--ff-body); outline:none;
-}
-.input:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green-glow); }
-.input::placeholder { color:var(--text-3); }
-textarea.input { resize:vertical; min-height:60px; }
-label.lbl {
-  font-size:10px; color:var(--text-2); letter-spacing:.08em;
-  text-transform:uppercase; display:block; margin-bottom:6px;
-}
-
-/* ─── Etiquetas de sección ─── */
-.sec-label {
-  font-size:10px; color:var(--text-3); letter-spacing:.12em;
-  text-transform:uppercase; margin:4px 0 10px;
-}
-
-/* ─── Toast ─── */
-#toast {
-  position:absolute; bottom:20px; left:16px; right:16px; z-index:300;
-  background:var(--surface2); border:1px solid var(--border2);
-  border-radius:var(--r); padding:12px 16px;
-  display:flex; align-items:center; gap:10px;
-  box-shadow:0 8px 32px rgba(0,0,0,.55);
-  transform:translateY(100px); opacity:0;
-  transition:all .28s cubic-bezier(.2,.8,.2,1);
-  pointer-events:none;
-}
-#toast.show { transform:translateY(0); opacity:1; }
-#toast-text { font-size:13px; font-weight:600; color:var(--text); }
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: HOME
-   ═══════════════════════════════════════════════ */
-#screen-home { justify-content:space-between; }
-
-.home-hero {
-  text-align:center; padding:8px 0 24px;
-}
-.home-logo-v2 {
-  width:220px; max-width:80%; height:auto;
-  margin:0 auto 6px; display:block;
-  filter:drop-shadow(0 0 20px rgba(34,214,138,.2));
-}
-.home-logo-v2-fallback {
-  /* Si la imagen no carga — fallback SVG inline */
-  width:220px; max-width:80%; height:60px; margin:0 auto 6px; display:block;
-  display:flex; align-items:center; justify-content:center; gap:12px;
-}
-.home-tagline {
-  font-size:13px; color:var(--text-2); margin-top:4px;
-  letter-spacing:.04em;
-}
-
-.mode-card {
-  border-radius:var(--r); padding:17px 18px; margin-bottom:10px;
-  display:flex; align-items:center; gap:14px;
-  background:var(--surface2); border:1px solid var(--border2);
-  cursor:pointer; transition:all .16s ease;
-  text-align:left; width:100%; font-family:var(--ff-body); color:var(--text);
-}
-.mode-card:hover { border-color:var(--border); background:rgba(255,255,255,.04); }
-.mode-card:active { transform:scale(.985); }
-.mode-card.gold-border { border-color:rgba(232,184,75,.32); background:rgba(232,184,75,.04); }
-.mode-card.gold-border:hover { background:rgba(232,184,75,.08); }
-.mode-card.blue-border { border-color:rgba(92,168,232,.32); background:rgba(92,168,232,.04); }
-.mode-card.blue-border:hover { background:rgba(92,168,232,.08); }
-.mode-icon {
-  width:46px; height:46px; border-radius:12px; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; font-size:22px;
-}
-.mc-green { background:rgba(34,214,138,.12); border:1px solid rgba(34,214,138,.28); }
-.mc-gold  { background:rgba(232,184,75,.12); border:1px solid rgba(232,184,75,.28); }
-.mc-blue  { background:rgba(92,168,232,.12); border:1px solid rgba(92,168,232,.28); }
-.mode-texts { flex:1; }
-.mode-title { font-weight:700; font-size:15px; }
-.mode-sub   { font-size:12px; color:var(--text-2); margin-top:2px; }
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: HOTEL
-   ═══════════════════════════════════════════════ */
-.hotel-header {
-  display:flex; align-items:center; gap:12px; margin-bottom:18px;
-}
-.hotel-logo-med {
-  width:40px; height:40px; border-radius:50%; object-fit:contain;
-  border:1px solid rgba(232,184,75,.3);
-  background:rgba(232,184,75,.06);
-}
-.hotel-logo-fallback {
-  width:40px; height:40px; border-radius:50%;
-  background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.3);
-  display:flex; align-items:center; justify-content:center; font-size:18px;
-}
-
-.poi-btn {
-  width:100%; background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--r); padding:14px 16px; margin-bottom:10px;
-  display:flex; align-items:center; gap:13px;
-  cursor:pointer; transition:all .15s ease; font-family:var(--ff-body); color:var(--text);
-}
-.poi-btn:hover { background:var(--surface2); border-color:var(--border2); }
-.poi-btn:active { transform:scale(.985); }
-.poi-icon {
-  width:42px; height:42px; border-radius:10px; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; font-size:20px;
-}
-.poi-name { font-weight:700; font-size:14px; }
-.poi-meta { font-size:11px; color:var(--text-2); margin-top:2px; }
-
-/* Mini mapa hotel */
-.mini-map-hotel {
-  height:78px; border-radius:var(--r); margin-bottom:18px;
-  background:var(--surface); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  position:relative; overflow:hidden;
-}
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: NAVIGATION con MAPA
-   ═══════════════════════════════════════════════ */
-#map-wrap {
-  width:100%; height:215px; border-radius:var(--r); overflow:hidden;
-  border:1px solid var(--border); margin-bottom:14px; flex-shrink:0;
-}
-#leaflet-map { width:100%; height:100%; }
-
-/* Leaflet dark override */
-.leaflet-tile { filter:brightness(.65) saturate(.5) hue-rotate(115deg); }
-.leaflet-control-zoom { display:none; }
-.leaflet-popup-content-wrapper {
-  background:var(--surface2) !important; border:1px solid var(--border) !important;
-  border-radius:10px !important; box-shadow:0 8px 24px rgba(0,0,0,.5) !important;
-  color:var(--text) !important;
-}
-.leaflet-popup-tip { background:var(--surface2) !important; }
-.leaflet-popup-content {
-  font-family:var(--ff-body) !important; font-size:13px !important; margin:10px 12px !important;
-}
-.popup-img { width:100%; height:85px; object-fit:cover; border-radius:7px; margin-bottom:7px; display:block; }
-.popup-title { font-weight:700; color:#fff; font-size:13px; margin-bottom:3px; }
-.popup-desc  { color:var(--text-2); font-size:12px; line-height:1.4; }
-.popup-dist  { color:var(--green); font-size:11px; font-weight:700; margin-top:5px; }
-
-/* HUD distancia */
-.dist-hud { display:flex; gap:8px; margin-bottom:12px; flex-shrink:0; }
-.dist-card {
-  flex:1; background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--r-sm); padding:10px 10px; text-align:center;
-}
-.dist-label { font-size:9px; color:var(--text-3); letter-spacing:.08em; text-transform:uppercase; }
-.dist-value { font-size:20px; font-weight:800; color:var(--green); margin-top:3px; line-height:1; }
-.dist-value.warn { color:var(--gold); }
-.dist-value.good { color:var(--green); animation:pulse .8s ease-in-out infinite; }
-
-/* Alerta proximidad */
-#proximity-alert {
-  display:none; gap:10px; align-items:center;
-  background:rgba(232,184,75,.07); border:1px solid rgba(232,184,75,.32);
-  border-radius:var(--r-sm); padding:11px 13px; margin-bottom:12px;
-  font-size:12px; color:var(--gold); flex-shrink:0;
-}
-#proximity-alert.visible { display:flex; animation:pulse-gold 2s ease-in-out infinite; }
-@keyframes pulse-gold { 0%,100%{opacity:1} 50%{opacity:.7} }
-
-/* Flecha orientación */
-.arrow-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:12px; flex-shrink:0; }
-.arrow-ring {
-  width:86px; height:86px; border-radius:50%;
-  background:var(--green-glow); border:1.5px solid rgba(34,214,138,.28);
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-}
-.arrow-ring::before { /* pulso externo */
-  content:''; position:absolute; inset:-6px; border-radius:50%;
-  border:1px solid rgba(34,214,138,.12);
-  animation:ring-pulse 2s ease-in-out infinite;
-}
-@keyframes ring-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.06)} }
-#nav-arrow { transition:transform .35s ease; }
-.arrow-label { font-size:11px; color:var(--text-3); letter-spacing:.08em; }
-
-/* GPS status */
-.gps-badge {
-  display:inline-flex; align-items:center; gap:5px;
-  font-size:10px; font-weight:700; padding:4px 10px;
-  border-radius:var(--r-pill); letter-spacing:.06em;
-}
-.gps-ok   { background:rgba(34,214,138,.1); color:var(--green); border:1px solid rgba(34,214,138,.22); }
-.gps-off  { background:rgba(240,85,85,.1); color:var(--danger); border:1px solid rgba(240,85,85,.22); }
-.gps-wait { background:rgba(255,255,255,.05); color:var(--text-2); border:1px solid var(--border); }
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: ARRIVAL
-   ═══════════════════════════════════════════════ */
-.arrival-icon-wrap {
-  width:82px; height:82px; border-radius:50%; margin:0 auto 14px;
-  display:flex; align-items:center; justify-content:center;
-  border:2px solid var(--green); background:rgba(34,214,138,.09);
-  overflow:hidden; flex-shrink:0;
-}
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: AR VIEW — fullscreen
-   ═══════════════════════════════════════════════ */
-#screen-ar {
-  position:fixed; inset:0; z-index:999;
-  background:#000; display:none; flex-direction:column;
-  width:100vw; height:100dvh; max-width:none; border-radius:0;
+  margin:0;
   padding:0;
-}
-#screen-ar.active { display:flex; }
-#ar-video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.ar-hud   { position:absolute; inset:0; pointer-events:none; z-index:2; }
-
-/* Esquinas AR */
-.ar-c { position:absolute; width:28px; height:28px; border-color:var(--green); border-style:solid; opacity:.65; }
-.ar-c.tl { top:17%; left:5%;  border-width:2px 0 0 2px; }
-.ar-c.tr { top:17%; right:5%; border-width:2px 2px 0 0; }
-.ar-c.bl { bottom:30%; left:5%;  border-width:0 0 2px 2px; }
-.ar-c.br { bottom:30%; right:5%; border-width:0 2px 2px 0; }
-
-/* Línea de scan */
-.ar-scan {
-  position:absolute; left:0; right:0; height:1.5px;
-  background:linear-gradient(90deg,transparent,rgba(34,214,138,.55),transparent);
-  animation:scan 4s linear infinite;
-}
-@keyframes scan { 0%{top:17%} 100%{top:70%} }
-
-/* Marcador POI en AR */
-.ar-poi-wrap {
-  position:absolute; left:50%; top:34%; transform:translateX(-50%);
-  pointer-events:none; display:flex; flex-direction:column; align-items:center;
-}
-.ar-poi-card {
-  background:rgba(2,26,16,.88); border:1px solid rgba(34,214,138,.38);
-  border-radius:14px; overflow:hidden; min-width:175px; max-width:220px;
-  text-align:center; backdrop-filter:blur(12px);
-  animation:ar-float 3s ease-in-out infinite;
-}
-@keyframes ar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-#ar-poi-img { width:100%; height:80px; object-fit:cover; display:block; }
-#ar-poi-img.hidden { display:none; }
-.ar-poi-body { padding:10px 14px 12px; }
-.ar-poi-icon-el { font-size:22px; }
-.ar-poi-name-el { font-size:15px; font-weight:800; color:#fff; margin:4px 0 2px; font-family:var(--ff-display); }
-.ar-poi-dist-el { font-size:13px; color:var(--green); font-weight:700; }
-.ar-poi-desc-el { font-size:11px; color:var(--text-2); margin-top:4px; line-height:1.4; }
-.ar-line { width:1px; height:46px; background:linear-gradient(var(--green),transparent); }
-.ar-dot  { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); }
-
-/* Top bar AR */
-.ar-topbar {
-  position:absolute; top:0; left:0; right:0; padding:14px 18px;
-  display:flex; align-items:center; justify-content:space-between;
-  background:linear-gradient(rgba(2,26,16,.85),transparent);
-  pointer-events:all;
-}
-.ar-close {
-  background:rgba(2,26,16,.78); border:1px solid var(--border);
-  border-radius:var(--r-pill); padding:8px 14px; color:var(--text-2);
-  font-size:13px; cursor:pointer; font-family:var(--ff-body);
-  backdrop-filter:blur(6px);
-}
-.ar-badge-live {
-  background:rgba(2,26,16,.78); border:1px solid rgba(34,214,138,.3);
-  border-radius:var(--r-pill); padding:5px 13px;
-  color:var(--green); font-size:11px; font-weight:700; letter-spacing:.08em;
-  backdrop-filter:blur(6px);
+  width:100%;
+  height:100%;
+  background: radial-gradient(ellipse at 30% 20%, #0d3520 0%, #091608 60%, #040e06 100%);
+  font-family: var(--ff-body);
+  overflow:auto;
 }
 
-/* Brújula AR */
-.ar-compass {
-  position:absolute; top:14px; left:50%; transform:translateX(-50%);
-  background:rgba(2,26,16,.78); border:1px solid var(--border);
-  border-radius:var(--r-pill); padding:5px 16px;
-  backdrop-filter:blur(6px); overflow:hidden; width:196px;
-}
-.compass-track { position:relative; height:17px; overflow:hidden; }
-.compass-dirs  { display:flex; transition:transform .3s ease; }
-.compass-dir   { width:48px; text-align:center; font-size:10px; font-weight:700; color:var(--text-3); }
-.compass-dir.n { color:var(--gold); }
-.compass-needle { position:absolute; top:0; left:50%; width:1px; height:100%; background:var(--gold); transform:translateX(-50%); }
-
-/* HUD inferior AR */
-.ar-bottom {
-  position:absolute; bottom:0; left:0; right:0;
-  background:linear-gradient(transparent,rgba(2,26,16,.95) 28%);
-  padding:36px 20px 32px; pointer-events:all;
-}
-.ar-dist-big { font-size:52px; font-weight:800; color:var(--green); line-height:1; letter-spacing:-.03em; }
-.ar-dist-unit { font-size:20px; opacity:.6; }
-.ar-info-row { display:flex; gap:8px; margin:12px 0 14px; }
-.ar-chip {
-  flex:1; background:rgba(10,36,21,.8); border:1px solid var(--border);
-  border-radius:9px; padding:9px 8px; text-align:center; backdrop-filter:blur(6px);
-}
-.ar-chip-label { display:block; font-size:9px; color:var(--text-3); text-transform:uppercase; letter-spacing:.07em; }
-.ar-chip-value { display:block; font-size:14px; font-weight:700; color:var(--text); margin-top:2px; }
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: CREATOR
-   ═══════════════════════════════════════════════ */
-.tour-name-bar {
-  display:flex; align-items:center; gap:10px;
-  background:rgba(34,214,138,.05); border:1px solid rgba(34,214,138,.22);
-  border-radius:var(--r); padding:12px 14px; margin-bottom:14px;
-}
-.tour-name-input {
-  flex:1; background:none; border:none; color:var(--text);
-  font-size:14px; font-weight:700; font-family:var(--ff-body); outline:none;
-}
-.tour-name-input::placeholder { color:var(--text-3); font-weight:400; }
-.creator-map-wrap {
-  height:155px; border-radius:var(--r); overflow:hidden;
-  border:1px solid var(--border); margin-bottom:14px;
-}
-#creator-map { width:100%; height:100%; }
-
-/* Drop zone de foto */
-.drop-zone {
-  border:1.5px dashed rgba(232,184,75,.38); border-radius:var(--r);
-  padding:18px; text-align:center; cursor:pointer;
-  background:rgba(232,184,75,.02); transition:all .16s ease;
-  position:relative; overflow:hidden; margin-bottom:12px;
-}
-.drop-zone:hover { border-color:var(--gold); background:rgba(232,184,75,.06); }
-.drop-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-.drop-icon { font-size:26px; margin-bottom:5px; }
-.drop-text { font-size:13px; font-weight:600; color:var(--gold); }
-.drop-sub  { font-size:11px; color:var(--text-3); margin-top:3px; }
-
-#photo-preview { display:none; border-radius:var(--r-sm); overflow:hidden; border:1px solid var(--border2); margin-bottom:12px; }
-#photo-preview.vis { display:block; }
-#preview-img { width:100%; height:115px; object-fit:cover; display:block; }
-.preview-bar { padding:7px 10px; display:flex; align-items:center; gap:7px; }
-.exif-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--r-pill); }
-.exif-gps  { background:rgba(92,168,232,.12); color:var(--blue); border:1px solid rgba(92,168,232,.28); }
-.exif-dev  { background:rgba(34,214,138,.1); color:var(--green); border:1px solid rgba(34,214,138,.25); }
-.exif-none { background:rgba(240,85,85,.08); color:#f08080; border:1px solid rgba(240,85,85,.22); }
-
-/* POI item en lista */
-.cpoi-item {
-  display:flex; align-items:center; gap:11px;
-  padding:10px 12px; border-radius:var(--r-sm);
-  border:1px solid rgba(232,184,75,.2); background:rgba(232,184,75,.03);
-  margin-bottom:8px;
-}
-.cpoi-thumb {
-  width:44px; height:44px; border-radius:8px; object-fit:cover;
-  border:1px solid var(--border); flex-shrink:0;
-}
-.cpoi-thumb-empty {
-  width:44px; height:44px; border-radius:8px; flex-shrink:0;
-  background:var(--surface); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center; font-size:20px;
-}
-.cpoi-info { flex:1; min-width:0; }
-.cpoi-name   { font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cpoi-coords { font-size:10px; color:var(--text-2); margin-top:2px; }
-.cpoi-exif   { font-size:9px; color:var(--green); margin-top:1px; }
-
-/* Form add POI colapsable */
-#add-poi-form {
-  background:var(--surface2); border:1px solid var(--border2);
-  border-radius:var(--r); padding:14px; margin-bottom:12px; display:none;
-}
-#add-poi-form.vis { display:block; animation:s-in .2s ease; }
-.form-row { display:flex; gap:9px; }
-.form-row > div { flex:1; }
-
-/* ═══════════════════════════════════════════════
-   PANTALLA: GALERÍA
-   ═══════════════════════════════════════════════ */
-.gallery-empty {
-  flex:1; display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  text-align:center; gap:10px; padding:36px 20px;
-}
-.tour-card {
-  border-radius:var(--r); overflow:hidden; margin-bottom:14px;
-  border:1px solid var(--border2); background:var(--surface2);
-}
-.tour-cover { width:100%; height:120px; object-fit:cover; display:block; }
-.tour-cover-ph {
-  width:100%; height:120px; background:var(--surface);
-  display:flex; align-items:center; justify-content:center;
-  font-size:38px; border-bottom:1px solid var(--border);
-}
-.tour-body { padding:12px 14px; }
-.tour-name { font-family:var(--ff-display); font-size:17px; color:#fff; margin-bottom:4px; }
-.tour-meta { font-size:11px; color:var(--text-2); display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
-.tour-thumbs { display:flex; gap:5px; margin-bottom:10px; }
-.tour-thumb { width:32px; height:32px; border-radius:6px; object-fit:cover; border:1px solid var(--border); }
-.tour-thumb-ph { width:32px; height:32px; border-radius:6px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; }
-.tour-thumb-more { width:32px; height:32px; border-radius:6px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--text-2); }
-.tour-actions { display:flex; gap:8px; }
-.t-btn {
-  flex:1; padding:10px 12px; border-radius:var(--r-sm);
-  font-size:13px; font-weight:700; cursor:pointer;
-  font-family:var(--ff-body); border:none;
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  transition:all .14s ease;
-}
-.t-go  { background:var(--green); color:#011a0d; }
-.t-go:hover { background:var(--green2); }
-.t-del { background:rgba(240,85,85,.08); border:1px solid rgba(240,85,85,.2); color:var(--danger); flex:0 0 auto; }
-.t-del:hover { background:rgba(240,85,85,.14); }
-
-/* ─── Utils ─── */
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
-* { scrollbar-width:none; }
-*::-webkit-scrollbar { display:none; }
-
-/* ═══════════════════════════════════════════════
-   FLECHA AR DIRECCIONAL — siempre visible, rota con GPS
-   Posición: 60% vertical, centrada horizontal
-   ═══════════════════════════════════════════════ */
-#ar-direction-arrow {
-  position: absolute;
-  top: 60%;
-  left: 50%;
-  /* transform base: centrado + rotación (gestionada por JS) */
-  transform: translate(-50%, -50%) rotate(0deg);
-  font-size: 52px;
-  color: #22d68a;
-  text-shadow:
-    0 0 20px rgba(34,214,138,.9),
-    0 0 40px rgba(34,214,138,.5),
-    0 0 60px rgba(34,214,138,.2);
-  z-index: 15;          /* encima del HUD, debajo del top-bar */
-  pointer-events: none;
-  transition: transform 0.35s ease; /* suaviza la rotación */
-  /* anillo exterior decorativo */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 80px;
-  margin-left: -40px; /* corrige el centrado del contenedor */
-  border-radius: 50%;
-  background: rgba(34,214,138,.08);
-  border: 1.5px solid rgba(34,214,138,.25);
-  backdrop-filter: blur(4px);
+/* 🔥 FULLSCREEN REAL */
+#app {
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding:20px;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing:border-box;
 }
 
-/* Botón "Reservar antes de ir" en pantalla NAV */
-#reserve-before-btn {
-  background: rgba(232,184,75,.08);
-  border: 1px solid rgba(232,184,75,.35);
-  color: var(--gold);
-  margin-bottom: 10px;
+/* LOGO */
+.logo {
+  width:220px;
+  max-width:80%;
+  margin:20px auto 10px;
+  display:block;
 }
-#reserve-before-btn:hover { background: rgba(232,184,75,.14); }
-#reserve-before-btn.done {
-  background: rgba(232,184,75,.04);
-  border-color: rgba(232,184,75,.18);
-  color: rgba(232,184,75,.5);
-  cursor: default;
+
+/* CARDS */
+.card {
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+}
+
+.card:hover {
+  border-color: var(--green);
+}
+
+.icon {
+  width:46px;
+  height:46px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+}
+
+.icon-green {
+  background: rgba(34,214,138,.15);
+}
+
+.icon-gold {
+  background: rgba(232,184,75,.15);
+}
+
+.icon-blue {
+  background: rgba(92,168,232,.15);
+}
+
+.title {
+  font-weight:700;
+  font-size:16px;
+}
+
+.sub {
+  font-size:12px;
+  color: var(--text2);
+}
+
+/* BOTON */
+.btn {
+  margin-top:auto;
+  padding:16px;
+  border:none;
+  border-radius:14px;
+  background: var(--green);
+  font-weight:700;
+  font-size:16px;
+  cursor:pointer;
+}
+
+/* MAPA */
+#map {
+  height:200px;
+  border-radius:16px;
+  margin-top:15px;
+}
+
+/* AR FLECHA */
+#arrow {
+  position:fixed;
+  top:55%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  font-size:60px;
+  color: var(--green);
+  pointer-events:none;
 }
 </style>
 </head>
 
 <body>
-<div id="phone">
 
-<!-- ════════════════════════════════════
-     PANTALLA: HOME
-     ════════════════════════════════════ -->
-<div id="screen-home" class="screen active">
+<div id="app">
 
-  <!-- Glow ambiental -->
-  <div style="position:absolute;width:320px;height:320px;border-radius:50%;background:radial-gradient(#1a5030,transparent);top:-120px;left:-80px;pointer-events:none;opacity:.35;"></div>
+  <!-- LOGO -->
+  <img class="logo"
+       src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV2.png"
+       onerror="this.src='https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png'">
 
-  <div class="home-hero">
-    <!--
-      LOGO V2 — estrategia de 3 fuentes:
-        1. jsDelivr CDN  (src principal — más rápido y sin CORS)
-        2. raw.github    (primer onerror — fallback externo)
-        3. Inline SVG    (segundo onerror — siempre funciona sin red)
-    -->
-    <img id="logo-v2-main"
-      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV2.png"
-      alt="Patagonia 360"
-      class="home-logo-v2"
-      onerror="
-        this.onerror=null;
-        this.src='https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png';
-        this.onerror=function(){
-          this.style.display='none';
-          document.getElementById('logo-v2-fallback').style.display='flex';
-        };
-      ">
-
-    <!-- Fallback SVG — visible solo si las 2 URLs fallan -->
-    <div id="logo-v2-fallback" style="display:none;flex-direction:column;align-items:center;gap:6px;margin-bottom:6px;">
-      <!-- Ícono circular inspirado en el logo real -->
-      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="48" cy="48" r="46" stroke="#e8b84b" stroke-width="2.5" fill="#021a10"/>
-        <!-- Cerros -->
-        <polygon points="48,18 28,58 68,58" fill="none" stroke="#e8b84b" stroke-width="2" stroke-linejoin="round"/>
-        <polygon points="30,58 18,78 42,78" fill="none" stroke="#22d68a" stroke-width="1.8" stroke-linejoin="round"/>
-        <polygon points="66,58 54,78 78,78" fill="none" stroke="#22d68a" stroke-width="1.8" stroke-linejoin="round"/>
-        <!-- Grid sobre el cerro central -->
-        <line x1="38" y1="43" x2="58" y2="43" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
-        <line x1="35" y1="50" x2="61" y2="50" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
-        <line x1="43" y1="36" x2="36" y2="55" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
-        <line x1="48" y1="28" x2="48" y2="58" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
-        <line x1="53" y1="36" x2="60" y2="55" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
-        <!-- Flecha circular inferior -->
-        <path d="M 20 80 A 30 30 0 0 0 76 80" stroke="#e8b84b" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <polygon points="76,80 70,74 82,75" fill="#e8b84b"/>
-      </svg>
-      <!-- Texto del logo -->
-      <div style="text-align:center;">
-        <div style="font-family:var(--ff-display);font-size:26px;color:#fff;letter-spacing:-.02em;line-height:1;">
-          Patagonia <span style="color:#22d68a;">360</span>
-        </div>
-        <div style="font-size:11px;color:#9abba0;letter-spacing:.12em;text-transform:uppercase;margin-top:3px;">
-          Estudio de Imágenes
-        </div>
-      </div>
-    </div>
-
-    <p class="home-tagline">AR Experience Platform · Bariloche</p>
-  </div>
-
-  <!-- Modo Viajero -->
-  <button class="mode-card" onclick="goHotel()">
-    <div class="mode-icon mc-green">🧭</div>
-    <div class="mode-texts">
-      <div class="mode-title">Modo Viajero</div>
-      <div class="mode-sub">Explorá puntos de interés con GPS y AR</div>
-    </div>
-    <span style="margin-left:auto;color:var(--green);font-size:20px;">›</span>
-  </button>
-
-  <!-- Crear Recorrido -->
-  <button class="mode-card gold-border" onclick="goCreator()">
-    <div class="mode-icon mc-gold">✏️</div>
-    <div class="mode-texts">
-      <div class="mode-title">Crear tu Recorrido</div>
-      <div class="mode-sub">Diseñá con fotos reales y GPS</div>
-    </div>
-    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-      <span class="chip chip-gold">NUEVO</span>
-      <span style="color:var(--gold);font-size:18px;">›</span>
-    </div>
-  </button>
-
-  <!-- Galería -->
-  <button class="mode-card blue-border" onclick="goGallery()">
-    <div class="mode-icon mc-blue">📚</div>
-    <div class="mode-texts">
-      <div class="mode-title">Mis Recorridos</div>
-      <div class="mode-sub" id="gallery-home-sub">Sin recorridos guardados</div>
-    </div>
-    <span style="margin-left:auto;color:var(--blue);font-size:20px;">›</span>
-  </button>
-
-  <p style="font-size:11px;color:var(--text-3);text-align:center;padding-top:14px;margin-top:auto;">
-    Demo Comercial v4 · Patagonia 360
-  </p>
-</div>
-
-
-<!-- ════════════════════════════════════
-     PANTALLA: HOTEL (Viajero)
-     ════════════════════════════════════ -->
-<div id="screen-hotel" class="screen">
-  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
-
-  <div class="hotel-header">
-    <!--
-      logoMed — misma estrategia de 3 fuentes que el logo principal
-    -->
-    <img id="hotel-logo-med"
-      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/logoMed.png"
-      alt="P360"
-      class="hotel-logo-med"
-      onerror="
-        this.onerror=null;
-        this.src='https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/logoMed.png';
-        this.onerror=function(){
-          this.style.display='none';
-          this.nextElementSibling.style.display='flex';
-        };
-      ">
-    <!-- Fallback SVG circular (igual estilo que el logo real) -->
-    <div class="hotel-logo-fallback" style="display:none;">
-      <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
-        <circle cx="20" cy="20" r="18" stroke="#e8b84b" stroke-width="2" fill="#021a10"/>
-        <polygon points="20,8 11,26 29,26" fill="none" stroke="#e8b84b" stroke-width="1.5" stroke-linejoin="round"/>
-        <line x1="15" y1="18" x2="25" y2="18" stroke="#22d68a" stroke-width="1" opacity=".7"/>
-        <line x1="20" y1="12" x2="20" y2="26" stroke="#22d68a" stroke-width="1" opacity=".7"/>
-      </svg>
-    </div>
+  <!-- MODO VIAJERO -->
+  <div class="card">
+    <div class="icon icon-green">🧭</div>
     <div>
-      <span class="chip chip-live">En vivo</span>
-      <div style="font-family:var(--ff-display);font-size:20px;color:#fff;margin-top:5px;">Hotel Demo</div>
-      <div style="font-size:12px;color:var(--text-2);">Co-branding Cliente + Patagonia 360</div>
+      <div class="title">Modo Viajero</div>
+      <div class="sub">Explorá con GPS y AR</div>
     </div>
   </div>
 
-  <!-- Botón AR -->
-  <button class="btn btn-ar" style="margin-bottom:16px;" onclick="openARScan()">
-    <span style="font-size:17px;">◉</span>
-    Abrir Vista AR
-    <span style="font-size:10px;background:rgba(34,214,138,.15);border-radius:99px;padding:2px 8px;">LIVE</span>
-  </button>
-
-  <!-- Mini mapa decorativo -->
-  <div class="mini-map-hotel">
-    <svg width="100%" height="100%" style="position:absolute;inset:0;opacity:.28">
-      <line x1="0" y1="25" x2="100%" y2="25" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,11"/>
-      <line x1="0" y1="52" x2="100%" y2="52" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,11"/>
-      <line x1="65"  y1="0" x2="65"  y2="78" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,11"/>
-      <line x1="170" y1="0" x2="170" y2="78" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,11"/>
-      <line x1="280" y1="0" x2="280" y2="78" stroke="var(--green)" stroke-width=".5" stroke-dasharray="5,11"/>
-    </svg>
-    <div style="position:relative;text-align:center;">
-      <div style="font-size:18px;color:var(--green);">⊕</div>
-      <div style="font-size:10px;color:var(--green);font-weight:700;">Tu ubicación</div>
-    </div>
-  </div>
-
-  <div class="sec-label">Servicios disponibles</div>
-
-  <button class="poi-btn" onclick="selectSvc('spa')" style="border-color:rgba(126,207,192,.28);">
-    <div class="poi-icon" style="background:rgba(126,207,192,.1);border:1px solid rgba(126,207,192,.3);color:#7ecfc0;">✦</div>
-    <div><div class="poi-name">Spa & Wellness</div><div class="poi-meta">85m · Navegar</div></div>
-    <span style="margin-left:auto;color:#7ecfc0;font-size:18px;">›</span>
-  </button>
-
-  <button class="poi-btn" onclick="selectSvc('restaurant')" style="border-color:rgba(232,201,122,.28);">
-    <div class="poi-icon" style="background:rgba(232,201,122,.1);border:1px solid rgba(232,201,122,.3);color:#e8c97a;">◈</div>
-    <div><div class="poi-name">Restaurante</div><div class="poi-meta">120m · Navegar</div></div>
-    <span style="margin-left:auto;color:#e8c97a;font-size:18px;">›</span>
-  </button>
-
-  <button class="poi-btn" onclick="selectSvc('pool')" style="border-color:rgba(92,168,232,.28);">
-    <div class="poi-icon" style="background:rgba(92,168,232,.1);border:1px solid rgba(92,168,232,.3);color:#5ca8e8;">◎</div>
-    <div><div class="poi-name">Piscina</div><div class="poi-meta">200m · Navegar</div></div>
-    <span style="margin-left:auto;color:#5ca8e8;font-size:18px;">›</span>
-  </button>
-</div>
-
-
-<!-- ════════════════════════════════════
-     PANTALLA: NAVIGATION — GPS + Mapa
-     ════════════════════════════════════ -->
-<div id="screen-nav" class="screen">
-
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <button class="btn-ghost" style="margin-bottom:0;" onclick="stopNav();show('screen-hotel')">← Volver</button>
-    <span id="gps-status" class="gps-badge gps-wait">GPS…</span>
-  </div>
-
-  <!-- Título destino -->
-  <div style="margin-bottom:12px;">
-    <span class="chip chip-green" style="margin-bottom:7px;display:inline-flex;">🧭 Navegando</span>
-    <div style="font-family:var(--ff-display);font-size:22px;color:#fff;" id="nav-title">—</div>
-    <div style="font-size:12px;color:var(--text-2);">Seguí las indicaciones</div>
-  </div>
-
-  <!-- MAPA LEAFLET -->
-  <div id="map-wrap"><div id="leaflet-map"></div></div>
-
-  <!-- Alerta proximidad -->
-  <div id="proximity-alert">
-    <span style="font-size:16px;">⚠️</span>
+  <!-- CREAR RECORRIDO -->
+  <div class="card">
+    <div class="icon icon-gold">✏️</div>
     <div>
-      <strong>¡Estás cerca!</strong>
-      <span style="font-size:11px;display:block;">A menos de 50m del destino</span>
-    </div>
-    <button class="btn btn-ar" style="width:auto;padding:7px 12px;font-size:12px;margin-left:auto;" onclick="openARView()">AR →</button>
-  </div>
-
-  <!-- HUD distancia -->
-  <div class="dist-hud">
-    <div class="dist-card">
-      <div class="dist-label">Distancia</div>
-      <div class="dist-value" id="dist-val">—</div>
-    </div>
-    <div class="dist-card">
-      <div class="dist-label">Rumbo</div>
-      <div class="dist-value" id="bearing-val" style="font-size:15px;">—</div>
-    </div>
-    <div class="dist-card">
-      <div class="dist-label">Precisión</div>
-      <div class="dist-value" id="acc-val" style="font-size:14px;">—</div>
+      <div class="title">Crear tu recorrido</div>
+      <div class="sub">Fotos + GPS</div>
     </div>
   </div>
 
-  <!-- Flecha de orientación -->
-  <div class="arrow-wrap">
-    <div class="arrow-ring">
-      <svg id="nav-arrow" width="50" height="50" viewBox="0 0 50 50" fill="none">
-        <path d="M25 43 L25 9"  stroke="var(--green)" stroke-width="3.5" stroke-linecap="round"/>
-        <path d="M13 21 L25 9 L37 21" stroke="var(--green)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="25" cy="43" r="3" fill="var(--green)" opacity=".4"/>
-      </svg>
-    </div>
-    <div class="arrow-label" id="arrow-label">Calculando dirección…</div>
-  </div>
-
-  <!-- Botón: Reservar antes de ir (nuevo) -->
-  <button class="btn" id="reserve-before-btn" onclick="reserveService()">
-    🗓️ Reservar antes de ir
-  </button>
-
-  <!-- BOTÓN INTELIGENTE — cambia según distancia -->
-  <button class="btn far-mode" id="smart-action-btn" onclick="handleSmartAction()">
-    Reservar
-  </button>
-</div>
-
-
-<!-- ════════════════════════════════════
-     PANTALLA: ARRIVAL
-     ════════════════════════════════════ -->
-<div id="screen-arrival" class="screen">
-  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
-    <div style="text-align:center;margin-bottom:26px;">
-      <div class="arrival-icon-wrap">
-        <img id="arrival-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none;">
-        <span id="arrival-emoji" style="font-size:36px;">✦</span>
-      </div>
-      <div style="font-size:11px;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">✓ Llegaste</div>
-      <div style="font-family:var(--ff-display);font-size:26px;color:#fff;margin-bottom:8px;" id="arr-title">—</div>
-      <span class="chip chip-green">Hotel Demo</span>
-    </div>
-    <div class="card" style="margin-bottom:20px;">
-      <p style="font-size:14px;color:var(--text-2);line-height:1.7;margin:0;" id="arr-desc">—</p>
-    </div>
-    <button class="btn btn-green" id="arr-action" onclick="handleArrival()" style="margin-bottom:10px;">Reservar</button>
-    <button class="btn btn-outline" onclick="show('screen-home')">← Volver al inicio</button>
-  </div>
-</div>
-
-
-<!-- ════════════════════════════════════
-     PANTALLA: AR VIEW (fullscreen)
-     ════════════════════════════════════ -->
-<div id="screen-ar" class="screen">
-  <video id="ar-video" autoplay playsinline muted></video>
-
-  <div class="ar-hud">
-    <!-- Top bar -->
-    <div class="ar-topbar">
-      <button class="ar-close" onclick="closeAR()">✕ Cerrar AR</button>
-      <!-- Brújula -->
-      <div class="ar-compass">
-        <div class="compass-track">
-          <div class="compass-dirs" id="compass-dirs"></div>
-          <div class="compass-needle"></div>
-        </div>
-      </div>
-      <div class="ar-badge-live">◉ AR LIVE</div>
-    </div>
-
-    <!-- Esquinas -->
-    <div class="ar-c tl"></div><div class="ar-c tr"></div>
-    <div class="ar-c bl"></div><div class="ar-c br"></div>
-    <!-- Scan line -->
-    <div class="ar-scan"></div>
-
-    <!-- ═══ FLECHA AR DIRECCIONAL ═══
-         Rota en tiempo real según bearing GPS + deviceorientation
-         Siempre visible encima del video, debajo del top-bar     -->
-    <div id="ar-direction-arrow">↑</div>
-
-    <!-- POI marker -->
-    <div class="ar-poi-wrap">
-      <div class="ar-poi-card">
-        <img id="ar-poi-img" src="" alt="" class="hidden"
-          onerror="this.classList.add('hidden')">
-        <div class="ar-poi-body">
-          <div class="ar-poi-icon-el" id="ar-poi-icon">📍</div>
-          <div class="ar-poi-name-el" id="ar-poi-name">—</div>
-          <div class="ar-poi-dist-el" id="ar-poi-dist">— m</div>
-          <div class="ar-poi-desc-el" id="ar-poi-desc"></div>
-        </div>
-      </div>
-      <div class="ar-line"></div>
-      <div class="ar-dot"></div>
-    </div>
-
-    <!-- HUD inferior -->
-    <div class="ar-bottom">
-      <div style="font-size:10px;color:var(--text-3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;">Distancia al destino</div>
-      <div>
-        <span class="ar-dist-big" id="ar-dist-big">—</span>
-        <span class="ar-dist-unit">m</span>
-      </div>
-      <div class="ar-info-row">
-        <div class="ar-chip"><span class="ar-chip-label">Rumbo</span><span class="ar-chip-value" id="ar-bearing">—</span></div>
-        <div class="ar-chip"><span class="ar-chip-label">GPS</span><span class="ar-chip-value" id="ar-gps" style="color:var(--green);">●●●●</span></div>
-        <div class="ar-chip"><span class="ar-chip-label">Señal</span><span class="ar-chip-value" id="ar-signal" style="color:var(--green);">Buena</span></div>
-      </div>
-      <button class="btn btn-green" onclick="closeAR();show('screen-arrival')">✓ Llegué aquí</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ════════════════════════════════════
-     PANTALLA: CREATOR
-     ════════════════════════════════════ -->
-<div id="screen-creator" class="screen">
-  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
-
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-    <div style="width:34px;height:34px;border-radius:50%;background:rgba(232,184,75,.12);border:1px solid rgba(232,184,75,.32);display:flex;align-items:center;justify-content:center;font-size:16px;">✏️</div>
+  <!-- GALERIA -->
+  <div class="card">
+    <div class="icon icon-blue">📚</div>
     <div>
-      <span class="chip chip-gold">Modo Creador</span>
-      <div style="font-family:var(--ff-display);font-size:20px;color:#fff;margin-top:5px;">Crear Recorrido</div>
+      <div class="title">Mis recorridos</div>
+      <div class="sub">Guardados</div>
     </div>
   </div>
 
-  <!-- Nombre del recorrido -->
-  <div class="tour-name-bar">
-    <span style="font-size:16px;">◬</span>
-    <input class="tour-name-input" id="tour-name-input" type="text" placeholder="Nombre del recorrido…" maxlength="60"/>
-  </div>
+  <!-- BOTON -->
+  <button class="btn" onclick="startGPS()">+ Crear recorrido</button>
 
-  <!-- Mapa del creator -->
-  <div class="creator-map-wrap">
-    <div id="creator-map"></div>
-  </div>
+  <!-- MAPA -->
+  <div id="map"></div>
 
-  <!-- Lista de POIs -->
-  <div class="sec-label">
-    Puntos del recorrido
-    <span id="poi-count" style="color:var(--gold);">(0)</span>
-  </div>
-  <div id="creator-poi-list">
-    <p id="creator-empty" style="font-size:13px;color:var(--text-3);text-align:center;padding:10px 0;">
-      Todavía sin puntos. Agregá el primero.
-    </p>
-  </div>
-
-  <!-- Botón agregar -->
-  <button class="btn btn-outline" style="border-style:dashed;border-color:rgba(232,184,75,.36);color:var(--gold);margin-bottom:12px;" onclick="togglePoiForm()">
-    <span style="font-size:16px;">＋</span> Agregar Punto de Interés
-  </button>
-
-  <!-- Formulario colapsable -->
-  <div id="add-poi-form">
-    <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:.05em;">NUEVO PUNTO</div>
-
-    <!-- Foto + EXIF -->
-    <label class="lbl">Foto del lugar</label>
-    <div class="drop-zone">
-      <input type="file" id="photo-input" accept="image/*" onchange="onPhotoSelected(this)">
-      <div class="drop-icon">📷</div>
-      <div class="drop-text">Tocar para subir foto</div>
-      <div class="drop-sub">JPEG · PNG · HEIC — Lee GPS automáticamente del EXIF</div>
-    </div>
-
-    <div id="photo-preview">
-      <img id="preview-img" src="" alt="">
-      <div class="preview-bar">
-        <span class="exif-badge exif-none" id="exif-badge">Sin GPS EXIF</span>
-      </div>
-    </div>
-
-    <!-- Campos -->
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
-      <div>
-        <label class="lbl">Nombre *</label>
-        <input class="input" id="poi-name-input" type="text" placeholder="Ej: Mirador del Cerro">
-      </div>
-      <div class="form-row">
-        <div>
-          <label class="lbl">Latitud</label>
-          <input class="input" id="poi-lat-input" type="number" step="any" placeholder="-41.1335">
-        </div>
-        <div>
-          <label class="lbl">Longitud</label>
-          <input class="input" id="poi-lng-input" type="number" step="any" placeholder="-71.3103">
-        </div>
-      </div>
-      <div>
-        <label class="lbl">Descripción</label>
-        <textarea class="input" id="poi-desc-input" placeholder="Descripción breve…"></textarea>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:9px;margin-top:12px;">
-      <button class="btn btn-gold" style="flex:1;" onclick="confirmAddPoi()">Confirmar Punto</button>
-      <button class="btn btn-outline" style="flex:0 0 auto;width:auto;padding:0 16px;" onclick="cancelPoiForm()">✕</button>
-    </div>
-  </div>
-
-  <!-- Guardar -->
-  <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-    <button class="btn btn-green" id="save-tour-btn" onclick="saveTour()" disabled>
-      💾 Guardar Recorrido
-    </button>
-    <p id="save-hint" style="font-size:11px;color:var(--text-3);text-align:center;">
-      Agregá al menos 1 punto para guardar
-    </p>
-  </div>
 </div>
 
+<!-- FLECHA AR -->
+<div id="arrow">⬆️</div>
 
-<!-- ════════════════════════════════════
-     PANTALLA: GALERÍA
-     ════════════════════════════════════ -->
-<div id="screen-gallery" class="screen">
-  <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
+<!-- LIBRERIAS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-    <div style="width:34px;height:34px;border-radius:50%;background:rgba(92,168,232,.12);border:1px solid rgba(92,168,232,.3);display:flex;align-items:center;justify-content:center;font-size:16px;">📚</div>
-    <div>
-      <span class="chip chip-blue">Mis Recorridos</span>
-      <div style="font-family:var(--ff-display);font-size:20px;color:#fff;margin-top:5px;">Galería</div>
-      <div style="font-size:12px;color:var(--text-2);" id="gallery-subtitle">Cargando…</div>
-    </div>
-  </div>
-
-  <div id="gallery-list"></div>
-
-  <button class="btn btn-outline" onclick="goCreator()" style="margin-top:6px;">
-    ＋ Crear nuevo recorrido
-  </button>
-</div>
-
-
-<!-- TOAST global -->
-<div id="toast">
-  <span id="toast-icon" style="font-size:16px;flex-shrink:0;">✓</span>
-  <span id="toast-text">Mensaje</span>
-</div>
-
-</div><!-- /phone -->
-
-<!-- ════════════════════════════════════════════════
-     JAVASCRIPT — Patagonia 360 v4
-     Organización:
-       1. Estado global (APP)
-       2. POIs del hotel (predefinidos)
-       3. LocalStorage — tours
-       4. Navegación entre pantallas
-       5. Hotel — selección de servicio
-       6. GPS — geolocation
-       7. Haversine + rumbo
-       8. Distancias + botón inteligente
-       9. Orientación del dispositivo
-      10. Mapa Leaflet — navegación
-      11. Mapa Leaflet — creator
-      12. AR View — cámara + overlay
-      13. Creator — fotos + EXIF
-      14. Galería
-      15. Toast
-      16. Init
-     ════════════════════════════════════════════════ -->
 <script>
-'use strict';
+let map, userMarker;
 
-/* ──────────────────────────────────────
-   1. ESTADO GLOBAL
-   ────────────────────────────────────── */
-const APP = {
-  // Servicio/POI activo para navegación
-  svc: null,
-  // GPS usuario
-  userLat: null, userLng: null, userAcc: null,
-  geoWatchId: null,
-  // Leaflet — navegación
-  navMap: null, userMarker: null, poiMarkers: [],
-  // Leaflet — creator
-  cMap: null, cUserMarker: null, cPoiMarkers: [],
-  // AR
-  arStream: null, arCompassTimer: null,
-  // Creator
-  cPois: [],
-  stagingPhoto: null,    // dataURL redimensionada
-  stagingExifGPS: null,  // {lat, lng} o null
-  poiFormOpen: false,
-  // Orientación
-  deviceHeading: null,
-};
-
-/* ──────────────────────────────────────
-   2. POIs HOTEL (predefinidos)
-   ────────────────────────────────────── */
-const HOTEL = {
-  spa: {
-    id:'spa', name:'Spa & Wellness', icon:'✦', emoji:'🧖', color:'#7ecfc0',
-    lat:-41.1320, lng:-71.3095,
-    desc:'Relajación premium con vista panorámica a los cerros patagónicos.',
-    action:'Reservar turno',
-    img:'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=300&h=120&fit=crop',
-  },
-  restaurant: {
-    id:'restaurant', name:'Restaurante', icon:'◈', emoji:'🍽️', color:'#e8c97a',
-    lat:-41.1340, lng:-71.3110,
-    desc:'Cocina patagónica de autor. Ingredientes locales. Abierto hasta las 23:00.',
-    action:'Ver menú',
-    img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&h=120&fit=crop',
-  },
-  pool: {
-    id:'pool', name:'Piscina', icon:'◎', emoji:'🏊', color:'#5ca8e8',
-    lat:-41.1328, lng:-71.3080,
-    desc:'Piscina climatizada con solárium y vista al lago Nahuel Huapi.',
-    action:'Reservar lugar',
-    img:'https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?w=300&h=120&fit=crop',
-  },
-};
-
-/* ──────────────────────────────────────
-   3. LOCALSTORAGE — tours
-   ────────────────────────────────────── */
-const LS_KEY = 'p360_tours_v4';
-
-function getTours()  {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
-  catch { return []; }
-}
-function setTours(t) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(t)); }
-  catch { toast('⚠️','Almacenamiento lleno'); }
-}
-function delTour(id) {
-  setTours(getTours().filter(t => t.id !== id));
-  renderGallery();
-  updateHomeBadge();
-  toast('🗑️','Recorrido eliminado');
-}
-
-/* ──────────────────────────────────────
-   4. NAVEGACIÓN ENTRE PANTALLAS
-   ────────────────────────────────────── */
-function show(id) {
-  // No afecta a screen-ar (es un overlay separado)
-  document.querySelectorAll('.screen:not(#screen-ar)').forEach(s => s.classList.remove('active'));
-  const el = document.getElementById(id);
-  if (el) el.classList.add('active');
-
-  // Efectos secundarios al entrar en pantalla
-  if (id === 'screen-nav')     { setTimeout(initNavMap, 80); startGPS(); }
-  if (id === 'screen-creator') { setTimeout(initCreatorMap, 80); }
-}
-
-function goHotel()   { show('screen-hotel'); }
-function goCreator() {
-  resetCreator();
-  show('screen-creator');
-}
-function goGallery() { renderGallery(); show('screen-gallery'); }
-
-/* ──────────────────────────────────────
-   5. HOTEL — selección de servicio
-   ────────────────────────────────────── */
-function selectSvc(id) {
-  const s = HOTEL[id]; if (!s) return;
-  APP.svc = s;
-
-  // Nav
-  document.getElementById('nav-title').textContent = s.name;
-
-  // Arrival
-  document.getElementById('arr-title').textContent = s.name;
-  document.getElementById('arr-desc').textContent = s.desc;
-  const btn = document.getElementById('arr-action');
-  btn.textContent = s.action; btn.dataset.done = '0';
-  btn.className = 'btn btn-green';
-
-  // Arrival icon
-  const img = document.getElementById('arrival-img');
-  const em  = document.getElementById('arrival-emoji');
-  if (s.img) { img.src = s.img; img.style.display='block'; em.style.display='none'; }
-  else        { img.style.display='none'; em.style.display=''; em.textContent=s.emoji; }
-
-  document.getElementById('proximity-alert').classList.remove('visible');
-  resetNavMap();
-  show('screen-nav');
-}
-
-function handleArrival() {
-  const btn = document.getElementById('arr-action');
-  if (btn.dataset.done === '1') return;
-  btn.dataset.done = '1';
-  btn.textContent = '✓ Solicitud enviada';
-  btn.className = 'btn btn-outline';
-  btn.style.color = 'var(--green)';
-  btn.style.borderColor = 'rgba(34,214,138,.35)';
-}
-
-/* ──────────────────────────────────────
-   6. GPS — geolocation
-   ────────────────────────────────────── */
 function startGPS() {
-  if (!navigator.geolocation) { setGPSBadge('off','No disponible'); useFallbackGPS(); return; }
-  setGPSBadge('wait','GPS buscando…');
-  navigator.geolocation.getCurrentPosition(onGPSOk, onGPSErr, {enableHighAccuracy:true, timeout:8000});
-  APP.geoWatchId = navigator.geolocation.watchPosition(onGPSOk, onGPSErr, {enableHighAccuracy:true, maximumAge:3000, timeout:10000});
-}
-function stopNav() {
-  if (APP.geoWatchId !== null) {
-    navigator.geolocation.clearWatch(APP.geoWatchId);
-    APP.geoWatchId = null;
-  }
-}
-function onGPSOk(p) {
-  APP.userLat = p.coords.latitude;
-  APP.userLng = p.coords.longitude;
-  APP.userAcc = Math.round(p.coords.accuracy);
-  setGPSBadge('ok', `±${APP.userAcc}m`);
-  updateNavMap();
-  updateDistances();
-}
-function onGPSErr(e) { console.warn('GPS:', e.message); useFallbackGPS(); }
-function useFallbackGPS() {
-  APP.userLat = -41.1335; APP.userLng = -71.3103; APP.userAcc = 999;
-  setGPSBadge('wait','Demo GPS');
-  updateNavMap();
-  updateDistances();
-}
-function setGPSBadge(type, text) {
-  const el = document.getElementById('gps-status'); if (!el) return;
-  el.className = `gps-badge gps-${type === 'ok' ? 'ok' : type === 'off' ? 'off' : 'wait'}`;
-  el.textContent = (type === 'ok' ? '◉ ' : '') + text;
-}
-
-/* ──────────────────────────────────────
-   7. HAVERSINE + RUMBO
-   ────────────────────────────────────── */
-function haversine(la1, lo1, la2, lo2) {
-  const R = 6371000, r = d => d * Math.PI / 180;
-  const a = Math.sin(r(la2-la1)/2)**2 + Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(r(lo2-lo1)/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-function bearing(la1, lo1, la2, lo2) {
-  const r = d => d*Math.PI/180, deg = r => r*180/Math.PI;
-  const y = Math.sin(r(lo2-lo1))*Math.cos(r(la2));
-  const x = Math.cos(r(la1))*Math.sin(r(la2)) - Math.sin(r(la1))*Math.cos(r(la2))*Math.cos(r(lo2-lo1));
-  return (deg(Math.atan2(y, x)) + 360) % 360;
-}
-function bearingText(deg) {
-  return ['N','NE','E','SE','S','SO','O','NO'][Math.round(deg/45)%8];
-}
-
-/* ──────────────────────────────────────
-   8. DISTANCIAS + BOTÓN INTELIGENTE
-   Lógica: < 50m → "Ir ahora" (verde)
-           ≥ 50m → "Reservar" (outline)
-   ────────────────────────────────────── */
-function updateDistances() {
-  if (!APP.svc || APP.userLat === null) return;
-
-  const dist  = haversine(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng);
-  const bear  = bearing(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng);
-  const distR = Math.round(dist);
-
-  // HUD
-  const dEl = document.getElementById('dist-val');
-  if (dEl) {
-    dEl.textContent = distR < 1000 ? `${distR}m` : `${(dist/1000).toFixed(1)}km`;
-    dEl.className = 'dist-value' + (distR < 50 ? ' good' : distR < 150 ? ' warn' : '');
-  }
-  const bEl = document.getElementById('bearing-val');
-  if (bEl) bEl.textContent = `${bearingText(bear)} ${Math.round(bear)}°`;
-  const aEl = document.getElementById('acc-val');
-  if (aEl) aEl.textContent = APP.userAcc < 900 ? `±${APP.userAcc}m` : 'Demo';
-
-  // Flecha — usa heading del dispositivo si está disponible
-  const arrowEl = document.getElementById('nav-arrow');
-  const labelEl = document.getElementById('arrow-label');
-  if (arrowEl) {
-    const visualBear = APP.deviceHeading !== null
-      ? (bear - APP.deviceHeading + 360) % 360
-      : bear;
-    arrowEl.style.transform = `rotate(${visualBear}deg)`;
-  }
-  if (labelEl) labelEl.textContent = `${bearingText(bear)} · ${Math.round(bear)}°`;
-
-  // Proximidad
-  const alertEl = document.getElementById('proximity-alert');
-  if (alertEl) alertEl.classList.toggle('visible', distR < 50);
-
-  // ── BOTÓN INTELIGENTE ──────────────────────────────
-  const smartBtn = document.getElementById('smart-action-btn');
-  if (smartBtn) {
-    if (distR < 50) {
-      // Modo "cerca": botón primario verde
-      smartBtn.textContent = '🚶 Ir ahora';
-      smartBtn.className = 'btn btn-green close-mode';
-    } else {
-      // Modo "lejos": botón secundario outline
-      smartBtn.textContent = APP.svc.action || 'Reservar';
-      smartBtn.className = 'btn btn-outline far-mode';
-    }
-  }
-
-  // Sincronizar AR HUD si está abierto
-  updateARHUD(distR, bear);
-
-  // Actualizar flecha AR direccional (siempre, por si AR está abierto)
-  updateARArrow(bear);
-}
-
-function handleSmartAction() {
-  if (!APP.svc || APP.userLat === null) { show('screen-arrival'); return; }
-  const dist = Math.round(haversine(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng));
-  if (dist < 50) {
-    // Cerca: ir directo a la pantalla de llegada
-    show('screen-arrival');
-  } else {
-    // Lejos: abrir AR para navegación
-    openARView();
-  }
-}
-
-/* ──────────────────────────────────────
-   FLECHA AR DIRECCIONAL
-   Rota el elemento #ar-direction-arrow
-   según bearing GPS ± heading del dispositivo
-   ────────────────────────────────────── */
-function updateARArrow(bearDeg) {
-  // Si no recibimos bearing, calcularlo si hay datos
-  if (bearDeg === undefined) {
-    if (!APP.svc || APP.userLat === null) return;
-    bearDeg = bearing(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng);
-  }
-
-  // Compensar con el heading del dispositivo si está disponible
-  let rotation = bearDeg;
-  if (APP.deviceHeading !== null) {
-    rotation = (bearDeg - APP.deviceHeading + 360) % 360;
-  }
-
-  const arrow = document.getElementById('ar-direction-arrow');
-  if (arrow) {
-    // Preservamos translate(-50%,-50%) y agregamos la rotación
-    arrow.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-  }
-}
-
-/* ──────────────────────────────────────
-   RESERVAR ANTES DE IR
-   Simula reserva y bloquea el botón
-   ────────────────────────────────────── */
-function reserveService() {
-  const btn = document.getElementById('reserve-before-btn');
-  if (!btn || btn.classList.contains('done')) return;
-
-  const name = APP.svc ? APP.svc.name : 'el servicio';
-  // En producción: llamada a API de reserva
-  console.log('[P360] Reserva solicitada:', { service: name, ts: new Date().toISOString() });
-
-  btn.classList.add('done');
-  btn.textContent = '✓ Reserva confirmada';
-  btn.onclick = null; // deshabilitar re-click
-
-  toast('🗓️', `Reserva de "${name}" confirmada`);
-}
-
-/* ──────────────────────────────────────
-   ORIENTACIÓN DEL DISPOSITIVO
-   Alias initOrientation para compatibilidad
-   con código generado externamente
-   ────────────────────────────────────── */
-function initOrientation() {
-  // Llama a startOrientation (que ya existe y maneja iOS + Android)
-  startOrientation();
-}
-
-/* ──────────────────────────────────────
-   9. ORIENTACIÓN DEL DISPOSITIVO
-      deviceorientation → heading real
-      Fallback graceful si no hay soporte
-   ────────────────────────────────────── */
-function startOrientation() {
-  if (typeof DeviceOrientationEvent === 'undefined') return;
-
-  const handler = (e) => {
-    // alpha = rotación alrededor del eje Z (0 = Norte)
-    if (e.alpha !== null) {
-      APP.deviceHeading = e.alpha;
-      updateDistances(); // refrescar flecha
-    }
-  };
-
-  // iOS 13+ requiere permiso explícito
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then(p => { if (p === 'granted') window.addEventListener('deviceorientation', handler, true); })
-      .catch(() => { /* sin permiso — flecha funciona igual con bearing GPS */ });
-  } else {
-    window.addEventListener('deviceorientation', handler, true);
-  }
-}
-
-/* ──────────────────────────────────────
-   10. MAPA LEAFLET — Navegación
-   ────────────────────────────────────── */
-function resetNavMap() {
-  if (APP.navMap) { APP.navMap.remove(); APP.navMap = null; APP.userMarker = null; APP.poiMarkers = []; }
-}
-
-function initNavMap() {
-  if (APP.navMap) return;
-  const el = document.getElementById('leaflet-map'); if (!el) return;
-
-  const la = APP.userLat ?? -41.1335, lo = APP.userLng ?? -71.3103;
-  APP.navMap = L.map('leaflet-map', { center:[la,lo], zoom:17, zoomControl:false, attributionControl:false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(APP.navMap);
-
-  // Marcador usuario
-  const uIcon = L.divIcon({ html:`<div style="width:14px;height:14px;border-radius:50%;background:var(--green);border:2.5px solid #fff;box-shadow:0 0 10px rgba(34,214,138,.65);"></div>`, className:'', iconSize:[14,14], iconAnchor:[7,7] });
-  APP.userMarker = L.marker([la,lo], { icon:uIcon })
-    .bindPopup('<strong style="color:#fff;">📍 Estás aquí</strong>')
-    .addTo(APP.navMap);
-
-  if (APP.svc) addPoiToNavMap(APP.svc);
-}
-
-function addPoiToNavMap(poi) {
-  if (!APP.navMap) return;
-  const hasImg = !!poi.img;
-  const pIcon = L.divIcon({
-    html: `<div style="width:36px;height:36px;border-radius:50%;background:${poi.color||'#22d68a'};display:flex;align-items:center;justify-content:center;font-size:17px;border:2px solid #fff;box-shadow:0 0 12px ${poi.color||'#22d68a'}88;overflow:hidden;">
-      ${hasImg ? `<img src="${poi.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (poi.emoji||'📍')}
-    </div>`,
-    className:'', iconSize:[36,36], iconAnchor:[18,18],
-  });
-  const imgTag = poi.img ? `<img src="${poi.img}" class="popup-img" onerror="this.style.display='none'">` : '';
-  const m = L.marker([poi.lat, poi.lng], { icon:pIcon })
-    .addTo(APP.navMap)
-    .bindPopup(`${imgTag}<div class="popup-title">${poi.name}</div><div class="popup-desc">${poi.desc||''}</div><div class="popup-dist" id="pdist-${poi.id}">Calculando…</div>`);
-  APP.poiMarkers.push(m);
-
-  // Línea punteada usuario → POI
-  const line = L.polyline(
-    [[APP.userLat??-41.1335, APP.userLng??-71.3103],[poi.lat,poi.lng]],
-    { color:poi.color||'#22d68a', weight:2, opacity:.42, dashArray:'5,10' }
-  ).addTo(APP.navMap);
-  APP.poiMarkers.push(line);
-
-  // Ajustar bounds para ver ambos puntos
-  APP.navMap.fitBounds(L.latLngBounds([[APP.userLat??-41.1335,APP.userLng??-71.3103],[poi.lat,poi.lng]]), { padding:[26,26] });
-}
-
-function updateNavMap() {
-  if (!APP.navMap) { if (document.getElementById('leaflet-map')) initNavMap(); return; }
-  if (APP.userLat === null) return;
-  APP.userMarker?.setLatLng([APP.userLat, APP.userLng]);
-  APP.navMap.panTo([APP.userLat, APP.userLng], { animate:true, duration:.4 });
-  if (APP.svc) {
-    const d = Math.round(haversine(APP.userLat,APP.userLng,APP.svc.lat,APP.svc.lng));
-    const el = document.getElementById(`pdist-${APP.svc.id}`);
-    if (el) el.textContent = `📍 A ${d}m de aquí`;
-  }
-}
-
-/* ──────────────────────────────────────
-   11. MAPA LEAFLET — Creator
-   ────────────────────────────────────── */
-function initCreatorMap() {
-  if (APP.cMap) return;
-  const el = document.getElementById('creator-map'); if (!el) return;
-  const la = APP.userLat ?? -41.1335, lo = APP.userLng ?? -71.3103;
-
-  APP.cMap = L.map('creator-map', { center:[la,lo], zoom:15, zoomControl:false, attributionControl:false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(APP.cMap);
-
-  const ic = L.divIcon({ html:`<div style="width:11px;height:11px;border-radius:50%;background:var(--gold);border:2px solid #fff;box-shadow:0 0 7px rgba(232,184,75,.6);"></div>`, className:'', iconSize:[11,11], iconAnchor:[5.5,5.5] });
-  APP.cUserMarker = L.marker([la,lo],{icon:ic}).bindPopup('<strong>📍 Tu posición</strong>').addTo(APP.cMap);
-
-  // Click en mapa → rellena coordenadas
-  APP.cMap.on('click', e => {
-    document.getElementById('poi-lat-input').value = e.latlng.lat.toFixed(6);
-    document.getElementById('poi-lng-input').value = e.latlng.lng.toFixed(6);
-    if (APP.poiFormOpen) toast('📍','Coordenadas actualizadas');
-  });
-}
-
-function addPoiToCreatorMap(poi) {
-  if (!APP.cMap) return;
-  const ic = L.divIcon({
-    html: `<div style="width:30px;height:30px;border-radius:50%;background:${poi.color};display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid #fff;box-shadow:0 0 8px ${poi.color}55;overflow:hidden;">
-      ${poi.img ? `<img src="${poi.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : poi.emoji}
-    </div>`,
-    className:'', iconSize:[30,30], iconAnchor:[15,15],
-  });
-  const m = L.marker([poi.lat,poi.lng],{icon:ic}).bindPopup(`<div class="popup-title">${poi.name}</div>`).addTo(APP.cMap);
-  APP.cPoiMarkers.push(m);
-  APP.cMap.panTo([poi.lat,poi.lng],{animate:true});
-}
-
-function refreshCreatorPois() {
-  if (!APP.cMap) return;
-  APP.cPoiMarkers.forEach(m=>m.remove()); APP.cPoiMarkers=[];
-  APP.cPois.forEach(p => addPoiToCreatorMap(p));
-}
-
-/* ──────────────────────────────────────
-   12. AR VIEW — cámara + overlay
-   ────────────────────────────────────── */
-async function openARView() {
-  const scr = document.getElementById('screen-ar');
-  document.body.appendChild(scr); // fullscreen fuera del phone
-  scr.style.display = 'flex';
-
-  initARCompass();
-
-  // Poblar overlay con datos del POI actual
-  if (APP.svc) {
-    const s = APP.svc;
-    document.getElementById('ar-poi-icon').textContent = s.emoji || '📍';
-    document.getElementById('ar-poi-name').textContent = s.name;
-    document.getElementById('ar-poi-desc').textContent = s.desc || '';
-    const imgEl = document.getElementById('ar-poi-img');
-    if (s.img) { imgEl.src = s.img; imgEl.classList.remove('hidden'); }
-    else        { imgEl.classList.add('hidden'); }
-    if (APP.userLat) {
-      updateARHUD(
-        Math.round(haversine(APP.userLat,APP.userLng,s.lat,s.lng)),
-        bearing(APP.userLat,APP.userLng,s.lat,s.lng)
-      );
-    }
-  }
-
-  // Cámara trasera
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }, audio:false,
-    });
-    APP.arStream = stream;
-    document.getElementById('ar-video').srcObject = stream;
-  } catch(e) {
-    console.warn('Cámara no disponible:', e.message);
-    // Sin cámara: el overlay AR igual funciona sobre fondo negro
-  }
-}
-
-function openARScan() {
-  if (!APP.svc) APP.svc = HOTEL.spa;
-  openARView();
-}
-
-function closeAR() {
-  const scr = document.getElementById('screen-ar');
-  scr.style.display = 'none';
-  document.getElementById('phone').appendChild(scr);
-  if (APP.arStream) {
-    APP.arStream.getTracks().forEach(t => t.stop());
-    APP.arStream = null;
-    document.getElementById('ar-video').srcObject = null;
-  }
-  if (APP.arCompassTimer) { clearInterval(APP.arCompassTimer); APP.arCompassTimer = null; }
-}
-
-function updateARHUD(dist, bear) {
-  const d = document.getElementById('ar-dist-big');  if (d) d.textContent = dist < 1000 ? dist : `${(dist/1000).toFixed(1)}k`;
-  const p = document.getElementById('ar-poi-dist');  if (p) p.textContent = `${dist}m`;
-  const b = document.getElementById('ar-bearing');   if (b) b.textContent = `${bearingText(bear)} ${Math.round(bear)}°`;
-}
-
-function initARCompass() {
-  const dirs = ['N','NE','E','SE','S','SO','O','NO'];
-  const c = document.getElementById('compass-dirs'); if (!c) return;
-  c.innerHTML = [...dirs,...dirs,...dirs].map(d=>`<div class="compass-dir ${d==='N'?'n':''}">${d}</div>`).join('');
-  let h = 15, dir = 1;
-  APP.arCompassTimer = setInterval(() => {
-    h += dir * .3; if(h>40)dir=-1; if(h<5)dir=1;
-    c.style.transform = `translateX(calc(50% + ${-(h/360)*(dirs.length*48)}px))`;
-  }, 50);
-  // Intentar orientación real
-  if (typeof DeviceOrientationEvent !== 'undefined') {
-    const fn = e => {
-      if (e.alpha !== null) {
-        clearInterval(APP.arCompassTimer);
-        c.style.transform = `translateX(calc(50% + ${-(e.alpha/360)*(dirs.length*48)}px))`;
-      }
-    };
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().then(p=>{if(p==='granted')window.addEventListener('deviceorientation',fn,true);}).catch(()=>{});
-    } else {
-      window.addEventListener('deviceorientation', fn, true);
-    }
-  }
-}
-
-/* ──────────────────────────────────────
-   13. CREATOR — fotos + EXIF + POIs
-   ────────────────────────────────────── */
-function resetCreator() {
-  APP.cPois = []; APP.stagingPhoto = null; APP.stagingExifGPS = null; APP.poiFormOpen = false;
-  ['tour-name-input','poi-name-input','poi-desc-input','poi-lat-input','poi-lng-input'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
-  document.getElementById('photo-input').value = '';
-  document.getElementById('photo-preview').classList.remove('vis');
-  document.getElementById('add-poi-form').classList.remove('vis');
-  document.getElementById('save-tour-btn').disabled = true;
-  document.getElementById('save-hint').style.display = '';
-  document.getElementById('poi-count').textContent = '(0)';
-  document.getElementById('creator-poi-list').innerHTML =
-    '<p id="creator-empty" style="font-size:13px;color:var(--text-3);text-align:center;padding:10px 0;">Todavía sin puntos. Agregá el primero.</p>';
-  if (APP.cMap) { APP.cMap.remove(); APP.cMap = null; APP.cUserMarker = null; APP.cPoiMarkers = []; }
-}
-
-function togglePoiForm() {
-  APP.poiFormOpen = !APP.poiFormOpen;
-  const f = document.getElementById('add-poi-form');
-  if (APP.poiFormOpen) {
-    f.classList.add('vis');
-    // Pre-rellenar coords con GPS si hay y campo vacío
-    if (APP.userLat && !document.getElementById('poi-lat-input').value) {
-      document.getElementById('poi-lat-input').value = (APP.userLat + .0006).toFixed(6);
-      document.getElementById('poi-lng-input').value = (APP.userLng + .0006).toFixed(6);
-    }
-    f.scrollIntoView({ behavior:'smooth', block:'nearest' });
-  } else {
-    f.classList.remove('vis');
-  }
-}
-
-function cancelPoiForm() {
-  APP.poiFormOpen = false;
-  APP.stagingPhoto = null; APP.stagingExifGPS = null;
-  document.getElementById('add-poi-form').classList.remove('vis');
-  document.getElementById('photo-preview').classList.remove('vis');
-  document.getElementById('photo-input').value = '';
-}
-
-/**
- * onPhotoSelected — lee EXIF GPS de la foto con exifr
- * y redimensiona a max 500px para persistencia eficiente
- */
-async function onPhotoSelected(input) {
-  const file = input.files[0]; if (!file) return;
-
-  const prev = document.getElementById('photo-preview');
-  const img  = document.getElementById('preview-img');
-  const badge = document.getElementById('exif-badge');
-
-  img.src = URL.createObjectURL(file);
-  prev.classList.add('vis');
-  badge.className = 'exif-badge exif-none';
-  badge.textContent = 'Leyendo EXIF…';
-
-  // Leer GPS del EXIF
-  let exifGPS = null;
-  try {
-    if (typeof exifr !== 'undefined') {
-      const data = await exifr.gps(file);
-      if (data?.latitude && data?.longitude)
-        exifGPS = { lat: data.latitude, lng: data.longitude };
-    }
-  } catch { /* sin EXIF */ }
-
-  if (exifGPS) {
-    document.getElementById('poi-lat-input').value = exifGPS.lat.toFixed(6);
-    document.getElementById('poi-lng-input').value = exifGPS.lng.toFixed(6);
-    APP.stagingExifGPS = exifGPS;
-    badge.className = 'exif-badge exif-gps';
-    badge.textContent = `GPS EXIF: ${exifGPS.lat.toFixed(4)}, ${exifGPS.lng.toFixed(4)}`;
-  } else if (APP.userLat) {
-    document.getElementById('poi-lat-input').value = (APP.userLat + .0006).toFixed(6);
-    document.getElementById('poi-lng-input').value = (APP.userLng + .0006).toFixed(6);
-    APP.stagingExifGPS = null;
-    badge.className = 'exif-badge exif-dev';
-    badge.textContent = 'GPS del dispositivo';
-  } else {
-    APP.stagingExifGPS = null;
-    badge.className = 'exif-badge exif-none';
-    badge.textContent = 'Sin GPS — ingresá coordenadas';
-  }
-
-  // Redimensionar imagen para guardar en localStorage (max 500px, JPEG 78%)
-  APP.stagingPhoto = await resizeToDataURL(file, 500, .78);
-}
-
-function resizeToDataURL(file, maxPx, quality) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const image = new Image();
-      image.onload = () => {
-        let w = image.width, h = image.height;
-        if (w > maxPx) { h = Math.round(h * maxPx / w); w = maxPx; }
-        if (h > maxPx) { w = Math.round(w * maxPx / h); h = maxPx; }
-        const cv = document.createElement('canvas');
-        cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(image, 0, 0, w, h);
-        resolve(cv.toDataURL('image/jpeg', quality));
-      };
-      image.onerror = () => resolve(null);
-      image.src = e.target.result;
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-}
-
-function confirmAddPoi() {
-  const name = document.getElementById('poi-name-input').value.trim();
-  const lat  = parseFloat(document.getElementById('poi-lat-input').value);
-  const lng  = parseFloat(document.getElementById('poi-lng-input').value);
-  const desc = document.getElementById('poi-desc-input').value.trim();
-
-  if (!name)           { toast('⚠️','Ingresá un nombre'); return; }
-  if (isNaN(lat)||isNaN(lng)) { toast('⚠️','Coordenadas inválidas'); return; }
-
-  const poi = {
-    id: `p-${Date.now()}`,
-    name, lat, lng, desc,
-    img: APP.stagingPhoto || null,
-    hasExifGPS: !!APP.stagingExifGPS,
-    color: '#22d68a', emoji: '📍',
-  };
-
-  APP.cPois.push(poi);
-  addPoiToCreatorMap(poi);
-  renderCreatorList();
-  cancelPoiForm();
-  document.getElementById('save-tour-btn').disabled = false;
-  document.getElementById('save-hint').style.display = 'none';
-  document.getElementById('poi-count').textContent = `(${APP.cPois.length})`;
-  toast('📍', `"${name}" agregado`);
-}
-
-function renderCreatorList() {
-  const c = document.getElementById('creator-poi-list');
-  if (APP.cPois.length === 0) {
-    c.innerHTML = '<p id="creator-empty" style="font-size:13px;color:var(--text-3);text-align:center;padding:10px 0;">Todavía sin puntos. Agregá el primero.</p>';
-    return;
-  }
-  c.innerHTML = APP.cPois.map((p, i) => `
-    <div class="cpoi-item">
-      ${p.img
-        ? `<img class="cpoi-thumb" src="${p.img}" alt="${esc(p.name)}">`
-        : `<div class="cpoi-thumb-empty">📍</div>`}
-      <div class="cpoi-info">
-        <div class="cpoi-name">${esc(p.name)}</div>
-        <div class="cpoi-coords">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div>
-        ${p.hasExifGPS ? '<div class="cpoi-exif">● GPS de foto</div>' : ''}
-      </div>
-      <button class="btn btn-danger" onclick="deleteCreatorPoi(${i})">✕</button>
-    </div>
-  `).join('');
-}
-
-function deleteCreatorPoi(i) {
-  APP.cPois.splice(i, 1);
-  renderCreatorList();
-  document.getElementById('poi-count').textContent = `(${APP.cPois.length})`;
-  if (APP.cPois.length === 0) {
-    document.getElementById('save-tour-btn').disabled = true;
-    document.getElementById('save-hint').style.display = '';
-  }
-  refreshCreatorPois();
-}
-
-function saveTour() {
-  if (APP.cPois.length === 0) return;
-  const rawName = document.getElementById('tour-name-input').value.trim();
-  const name = rawName || `Recorrido ${new Date().toLocaleDateString('es-AR')}`;
-  const tour = {
-    id: `t-${Date.now()}`,
-    name, created: new Date().toLocaleDateString('es-AR'),
-    pois: APP.cPois.map(p => ({...p})),
-  };
-  const tours = getTours();
-  tours.push(tour);
-  setTours(tours);
-  updateHomeBadge();
-  toast('✅', `"${name}" guardado con ${tour.pois.length} puntos`);
-  setTimeout(() => {
-    if (confirm(`✅ "${name}" guardado.\n¿Ir a Mis Recorridos?`)) goGallery();
-    else resetCreator();
-  }, 500);
-}
-
-/* ──────────────────────────────────────
-   14. GALERÍA
-   ────────────────────────────────────── */
-function renderGallery() {
-  const tours = getTours();
-  const list  = document.getElementById('gallery-list');
-  const sub   = document.getElementById('gallery-subtitle');
-
-  sub.textContent = tours.length === 0
-    ? 'Sin recorridos guardados'
-    : `${tours.length} recorrido${tours.length!==1?'s':''} guardado${tours.length!==1?'s':''}`;
-
-  if (tours.length === 0) {
-    list.innerHTML = `
-      <div class="gallery-empty">
-        <div style="font-size:44px;opacity:.35;">🗺️</div>
-        <div style="font-weight:700;color:var(--text-2);font-size:15px;">No hay recorridos todavía</div>
-        <div style="font-size:13px;color:var(--text-3);line-height:1.5;">Creá uno desde el Modo Creador.</div>
-      </div>`;
+  if (!navigator.geolocation) {
+    alert("GPS no soportado");
     return;
   }
 
-  list.innerHTML = tours.map(tour => {
-    const cover = tour.pois.find(p => p.img);
-    const coverHtml = cover
-      ? `<img class="tour-cover" src="${cover.img}" alt="${esc(tour.name)}" onerror="this.parentNode.innerHTML='<div class=\\'tour-cover-ph\\'>🗺️</div>'">`
-      : `<div class="tour-cover-ph">🗺️</div>`;
+  navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
 
-    const thumbs = tour.pois.slice(0,4).map(p =>
-      p.img ? `<img class="tour-thumb" src="${p.img}" alt="">` : `<div class="tour-thumb-ph">📍</div>`
-    ).join('');
-    const more = tour.pois.length > 4 ? `<div class="tour-thumb-more">+${tour.pois.length-4}</div>` : '';
+    if (!map) {
+      map = L.map('map').setView([lat, lon], 15);
 
-    return `
-    <div class="tour-card">
-      ${coverHtml}
-      <div class="tour-body">
-        <div class="tour-name">${esc(tour.name)}</div>
-        <div class="tour-meta">
-          <span>📍 ${tour.pois.length} punto${tour.pois.length!==1?'s':''}</span>
-          <span>📅 ${tour.created}</span>
-        </div>
-        <div class="tour-thumbs">${thumbs}${more}</div>
-        <div class="tour-actions">
-          <button class="t-btn t-go" onclick="loadTour('${tour.id}')">🧭 Recorrer</button>
-          <button class="t-btn t-del" onclick="if(confirm('¿Eliminar este recorrido?'))delTour('${tour.id}')">🗑️</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-function loadTour(tourId) {
-  const tour = getTours().find(t => t.id === tourId);
-  if (!tour || tour.pois.length === 0) { toast('⚠️','Recorrido sin puntos'); return; }
-  const first = tour.pois[0];
-  APP.svc = { ...first, color:'#22d68a', action:'Ver detalle' };
-  resetNavMap();
-  document.getElementById('nav-title').textContent = `${tour.name} · ${first.name}`;
-  document.getElementById('arr-title').textContent = first.name;
-  document.getElementById('arr-desc').textContent  = first.desc || '';
-  const btn = document.getElementById('arr-action');
-  btn.textContent = 'Ver detalle'; btn.dataset.done = '0'; btn.className='btn btn-green';
-  const img = document.getElementById('arrival-img');
-  const em  = document.getElementById('arrival-emoji');
-  if (first.img) { img.src=first.img; img.style.display='block'; em.style.display='none'; }
-  else           { img.style.display='none'; em.style.display=''; em.textContent='📍'; }
-  document.getElementById('proximity-alert').classList.remove('visible');
-  show('screen-nav');
-  toast('🧭', `Navegando: ${tour.name}`);
-}
-
-function updateHomeBadge() {
-  const t = getTours();
-  const el = document.getElementById('gallery-home-sub');
-  if (el) el.textContent = t.length === 0
-    ? 'Sin recorridos guardados'
-    : `${t.length} recorrido${t.length!==1?'s':''} guardado${t.length!==1?'s':''}`;
-}
-
-/* ──────────────────────────────────────
-   BASE QR / RECORRIDOS POR URL
-   ─────────────────────────────────────
-   exportTourJSON  → genera JSON del tour activo
-   buildTourURL    → genera URL compartible con ?tour=<base64>
-   loadTourFromURL → lee ?tour= al iniciar y carga el recorrido
-   ────────────────────────────────────── */
-
-/**
- * Exporta el recorrido activo como JSON string.
- * Copia al portapapeles si está disponible.
- */
-function exportTourJSON(tourId) {
-  const tours = getTours();
-  const tour  = tourId ? tours.find(t => t.id === tourId) : tours[tours.length - 1];
-  if (!tour) { toast('⚠️', 'No hay recorrido para exportar'); return; }
-
-  const json = JSON.stringify({
-    id:      tour.id,
-    name:    tour.name,
-    created: tour.created,
-    pois:    tour.pois.map(p => ({
-      name: p.name, lat: p.lat, lng: p.lng, desc: p.desc || '',
-      // No exportamos la imagen (dataURL) para mantener el JSON liviano
-    })),
-  }, null, 2);
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(json)
-      .then(() => toast('📋', 'JSON copiado al portapapeles'))
-      .catch(() => toast('📋', 'JSON generado (ver consola)'));
-  }
-  console.log('[P360] Tour JSON:', json);
-  return json;
-}
-
-/**
- * Genera una URL compartible con el recorrido codificado en base64.
- * Ejemplo: https://tu-sitio.com/index.html?tour=eyJpZCI6...
- */
-function buildTourURL(tourId) {
-  const tours = getTours();
-  const tour  = tourId ? tours.find(t => t.id === tourId) : tours[tours.length - 1];
-  if (!tour) { toast('⚠️', 'No hay recorrido para compartir'); return null; }
-
-  const payload = JSON.stringify({
-    name: tour.name,
-    pois: tour.pois.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, desc: p.desc || '' })),
-  });
-
-  const encoded = btoa(unescape(encodeURIComponent(payload)));
-  const url = `${location.origin}${location.pathname}?tour=${encoded}`;
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url)
-      .then(() => toast('🔗', 'URL copiada al portapapeles'))
-      .catch(() => {});
-  }
-  console.log('[P360] Tour URL:', url);
-  return url;
-}
-
-/**
- * Carga un recorrido desde el parámetro ?tour= de la URL.
- * Se ejecuta al iniciar. Si no hay parámetro, no hace nada.
- */
-function loadTourFromURL() {
-  const params = new URLSearchParams(location.search);
-  const encoded = params.get('tour');
-  if (!encoded) return; // sin parámetro → flujo normal
-
-  try {
-    const json    = decodeURIComponent(escape(atob(encoded)));
-    const data    = JSON.parse(json);
-
-    if (!data.pois || data.pois.length === 0) return;
-
-    // Guardar como tour temporal y navegar directamente
-    const tour = {
-      id:      `url-${Date.now()}`,
-      name:    data.name || 'Recorrido compartido',
-      created: new Date().toLocaleDateString('es-AR'),
-      pois:    data.pois.map((p, i) => ({
-        id: `up-${i}`, name: p.name, lat: p.lat, lng: p.lng,
-        desc: p.desc || '', img: null, color: '#22d68a', emoji: '📍',
-      })),
-    };
-
-    const existing = getTours();
-    // Evitar duplicados por URL
-    if (!existing.find(t => t.id === tour.id)) {
-      existing.push(tour);
-      setTours(existing);
+      userMarker = L.marker([lat, lon]).addTo(map);
+    } else {
+      userMarker.setLatLng([lat, lon]);
+      map.setView([lat, lon]);
     }
 
-    toast('🔗', `Recorrido "${tour.name}" cargado desde URL`);
-    setTimeout(() => loadTour(tour.id), 800);
+    updateArrow(lat, lon);
 
-  } catch(e) {
-    console.warn('[P360] URL inválida:', e.message);
-  }
+  }, err => {
+    console.log(err);
+  }, {
+    enableHighAccuracy: true
+  });
 }
 
-/* ──────────────────────────────────────
-   15. TOAST
-   ────────────────────────────────────── */
-let _toastTimer = null;
-function toast(icon, text) {
-  document.getElementById('toast-icon').textContent = icon;
-  document.getElementById('toast-text').textContent = text;
-  const el = document.getElementById('toast');
-  el.classList.add('show');
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+/* 🔥 FLECHA DINAMICA */
+function updateArrow(lat, lon) {
+
+  // destino fake (ejemplo)
+  const targetLat = -41.1;
+  const targetLon = -71.3;
+
+  const dLon = targetLon - lon;
+  const y = Math.sin(dLon) * Math.cos(targetLat);
+  const x = Math.cos(lat) * Math.sin(targetLat) -
+            Math.sin(lat) * Math.cos(targetLat) * Math.cos(dLon);
+
+  let brng = Math.atan2(y, x);
+  brng = brng * 180 / Math.PI;
+
+  document.getElementById("arrow").style.transform =
+    `translate(-50%, -50%) rotate(${brng}deg)`;
 }
-
-/* ──────────────────────────────────────
-   UTIL — escapar HTML (anti XSS)
-   ────────────────────────────────────── */
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-/* ──────────────────────────────────────
-   16. INIT
-   ────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-  // Pantalla inicial
-  show('screen-home');
-  updateHomeBadge();
-
-  // ─ Logos dinámicos desde jsDelivr CDN ─
-  loadLogos();
-
-  // ─ GPS silencioso ─
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      p => { APP.userLat=p.coords.latitude; APP.userLng=p.coords.longitude; APP.userAcc=Math.round(p.coords.accuracy); },
-      () => {},
-      { enableHighAccuracy:false, timeout:5000 }
-    );
-  }
-
-  // ─ Orientación del dispositivo (flecha AR + brújula) ─
-  initOrientation(); // alias de startOrientation()
-
-  // ─ Cargar recorrido desde URL si viene con ?tour= ─
-  loadTourFromURL();
-});
 </script>
+
 </body>
 </html>
