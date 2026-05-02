@@ -26,25 +26,29 @@
      ═══════════════════════════════════════════════ -->
 <script>
   /* ─────────────────────────────────────────
-     LOGOS — jsDelivr CDN (más estable que raw.githubusercontent)
-     Fallback inline si falla la carga
+     LOGOS — estrategia de 3 fuentes por imagen:
+       1. jsDelivr CDN  → src inicial en el HTML (más rápido, sin CORS)
+       2. raw.github    → primer onerror en el HTML
+       3. SVG inline    → segundo onerror en el HTML (siempre visible)
+
+     loadLogos() es un refuerzo opcional que solo actúa
+     si el src está vacío (ej: cargado desde archivo local sin red).
   ───────────────────────────────────────── */
   const LOGOS = {
-    v1:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/LogoV1.png',
-    v2:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/LogoV2.png',
-    med: 'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D/imagen/logoMed.png',
+    v1:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV1.png',
+    v2:  'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV2.png',
+    med: 'https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/logoMed.png',
   };
 
-  /* Aplica los logos dinámicamente una vez que el DOM está listo,
-     así funciona aunque el <img> no tenga src inicial */
   function loadLogos() {
-    const targets = {
-      'logo-v2-main':   LOGOS.v2,
-      'hotel-logo-med': LOGOS.med,
-    };
-    Object.entries(targets).forEach(([id, url]) => {
+    // Solo actúa si el elemento existe y su src está vacío o es el mismo dominio
+    // (evita sobreescribir si el HTML ya tiene la URL correcta y está cargando)
+    const map = { 'logo-v2-main': LOGOS.v2, 'hotel-logo-med': LOGOS.med };
+    Object.entries(map).forEach(([id, url]) => {
       const el = document.getElementById(id);
-      if (el && el.tagName === 'IMG') el.src = url;
+      if (el && el.tagName === 'IMG' && (!el.src || el.src === location.href)) {
+        el.src = url;
+      }
     });
   }
 </script>
@@ -695,34 +699,56 @@ label.lbl {
   <!-- Glow ambiental -->
   <div style="position:absolute;width:320px;height:320px;border-radius:50%;background:radial-gradient(#1a5030,transparent);top:-120px;left:-80px;pointer-events:none;opacity:.35;"></div>
 
-<div class="home-hero">
+  <div class="home-hero">
+    <!--
+      LOGO V2 — estrategia de 3 fuentes:
+        1. jsDelivr CDN  (src principal — más rápido y sin CORS)
+        2. raw.github    (primer onerror — fallback externo)
+        3. Inline SVG    (segundo onerror — siempre funciona sin red)
+    -->
+    <img id="logo-v2-main"
+      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/LogoV2.png"
+      alt="Patagonia 360"
+      class="home-logo-v2"
+      onerror="
+        this.onerror=null;
+        this.src='https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/LogoV2.png';
+        this.onerror=function(){
+          this.style.display='none';
+          document.getElementById('logo-v2-fallback').style.display='flex';
+        };
+      ">
 
-  <!-- LOGO PRINCIPAL -->
-  <img id="logo-v2-main"
-    src="imagen/LogoV2.png"
-    alt="Patagonia 360"
-    class="home-logo-v2"
-    onerror="this.style.display='none';document.getElementById('logo-v2-fallback').style.display='flex';">
-
-  <!-- FALLBACK -->
-  <div id="logo-v2-fallback"
-    style="display:none;justify-content:center;align-items:center;gap:10px;margin-bottom:6px;">
-
-    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(34,214,138,.2),rgba(232,184,75,.12));border:1.5px solid rgba(232,184,75,.4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 18px rgba(232,184,75,.14);">
-      ◬
-    </div>
-
-    <div style="font-weight:700;color:#fff;">
-      Patagonia <span style="color:#22d68a;">360</span>
-    </div>
-
-  </div>
-
-</div>
-        <div style="font-family:var(--ff-display);font-size:28px;color:#fff;letter-spacing:-.02em;">Patagonia <span style="color:var(--green);">360</span></div>
-        <div style="font-size:11px;color:var(--text-2);letter-spacing:.1em;text-transform:uppercase;">Estudio de Imágenes</div>
+    <!-- Fallback SVG — visible solo si las 2 URLs fallan -->
+    <div id="logo-v2-fallback" style="display:none;flex-direction:column;align-items:center;gap:6px;margin-bottom:6px;">
+      <!-- Ícono circular inspirado en el logo real -->
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="48" cy="48" r="46" stroke="#e8b84b" stroke-width="2.5" fill="#021a10"/>
+        <!-- Cerros -->
+        <polygon points="48,18 28,58 68,58" fill="none" stroke="#e8b84b" stroke-width="2" stroke-linejoin="round"/>
+        <polygon points="30,58 18,78 42,78" fill="none" stroke="#22d68a" stroke-width="1.8" stroke-linejoin="round"/>
+        <polygon points="66,58 54,78 78,78" fill="none" stroke="#22d68a" stroke-width="1.8" stroke-linejoin="round"/>
+        <!-- Grid sobre el cerro central -->
+        <line x1="38" y1="43" x2="58" y2="43" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
+        <line x1="35" y1="50" x2="61" y2="50" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
+        <line x1="43" y1="36" x2="36" y2="55" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
+        <line x1="48" y1="28" x2="48" y2="58" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
+        <line x1="53" y1="36" x2="60" y2="55" stroke="#e8b84b" stroke-width="1" opacity=".6"/>
+        <!-- Flecha circular inferior -->
+        <path d="M 20 80 A 30 30 0 0 0 76 80" stroke="#e8b84b" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <polygon points="76,80 70,74 82,75" fill="#e8b84b"/>
+      </svg>
+      <!-- Texto del logo -->
+      <div style="text-align:center;">
+        <div style="font-family:var(--ff-display);font-size:26px;color:#fff;letter-spacing:-.02em;line-height:1;">
+          Patagonia <span style="color:#22d68a;">360</span>
+        </div>
+        <div style="font-size:11px;color:#9abba0;letter-spacing:.12em;text-transform:uppercase;margin-top:3px;">
+          Estudio de Imágenes
+        </div>
       </div>
     </div>
+
     <p class="home-tagline">AR Experience Platform · Bariloche</p>
   </div>
 
@@ -772,11 +798,30 @@ label.lbl {
   <button class="btn-ghost" onclick="show('screen-home')">← Volver</button>
 
   <div class="hotel-header">
-    <!-- logoMed como ícono del hotel -->
-    <img src="https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/logoMed.png"
-      alt="P360" class="hotel-logo-med"
-      onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
-    <div class="hotel-logo-fallback" style="display:none;">◬</div>
+    <!--
+      logoMed — misma estrategia de 3 fuentes que el logo principal
+    -->
+    <img id="hotel-logo-med"
+      src="https://cdn.jsdelivr.net/gh/patagonia360estudio/demo-3D@main/imagen/logoMed.png"
+      alt="P360"
+      class="hotel-logo-med"
+      onerror="
+        this.onerror=null;
+        this.src='https://raw.githubusercontent.com/patagonia360estudio/demo-3D/main/imagen/logoMed.png';
+        this.onerror=function(){
+          this.style.display='none';
+          this.nextElementSibling.style.display='flex';
+        };
+      ">
+    <!-- Fallback SVG circular (igual estilo que el logo real) -->
+    <div class="hotel-logo-fallback" style="display:none;">
+      <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="#e8b84b" stroke-width="2" fill="#021a10"/>
+        <polygon points="20,8 11,26 29,26" fill="none" stroke="#e8b84b" stroke-width="1.5" stroke-linejoin="round"/>
+        <line x1="15" y1="18" x2="25" y2="18" stroke="#22d68a" stroke-width="1" opacity=".7"/>
+        <line x1="20" y1="12" x2="20" y2="26" stroke="#22d68a" stroke-width="1" opacity=".7"/>
+      </svg>
+    </div>
     <div>
       <span class="chip chip-live">En vivo</span>
       <div style="font-family:var(--ff-display);font-size:20px;color:#fff;margin-top:5px;">Hotel Demo</div>
@@ -1337,8 +1382,6 @@ function updateDistances() {
   const bear  = bearing(APP.userLat, APP.userLng, APP.svc.lat, APP.svc.lng);
   const distR = Math.round(dist);
 
-     updateARDirection();
-
   // HUD
   const dEl = document.getElementById('dist-val');
   if (dEl) {
@@ -1589,109 +1632,7 @@ async function openARView() {
   document.body.appendChild(scr); // fullscreen fuera del phone
   scr.style.display = 'flex';
 
-     initOrientation();
-
-     /* ──────────────────────────────────────
-   ORIENTACIÓN REAL + FLECHA AR
-────────────────────────────────────── */
-function initOrientation() {
-  if (typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DeviceOrientationEvent.requestPermission === "function") {
-
-    DeviceOrientationEvent.requestPermission()
-      .then(response => {
-        if (response === "granted") {
-          window.addEventListener("deviceorientation", onOrientation);
-        }
-      })
-      .catch(console.error);
-
-  } else {
-    window.addEventListener("deviceorientation", onOrientation);
-  }
-}
-
-function onOrientation(e) {
-  if (e.alpha === null) return;
-
-  // heading del dispositivo (0 = norte)
-  APP.deviceHeading = e.alpha;
-
-  updateARDirection();
-}
-
-function updateARDirection() {
-  if (!APP.svc || APP.userLat === null) return;
-
-  const brng = bearing(
-    APP.userLat,
-    APP.userLng,
-    APP.svc.lat,
-    APP.svc.lng
-  );
-
-  const heading = APP.deviceHeading || 0;
-
-  // Diferencia = hacia dónde girar la flecha
-  let rotation = brng - heading;
-
-  const arrow = document.getElementById("ar-direction-arrow");
-  if (arrow) {
-    arrow.style.transform =
-      `translate(-50%, -50%) rotate(${rotation}deg)`;
-  }
-}
-
- /* ──────────────────────────────────────
-   ORIENTACIÓN REAL + FLECHA AR
-────────────────────────────────────── */
-function initOrientation() {
-  if (typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DeviceOrientationEvent.requestPermission === "function") {
-
-    DeviceOrientationEvent.requestPermission()
-      .then(response => {
-        if (response === "granted") {
-          window.addEventListener("deviceorientation", onOrientation);
-        }
-      })
-      .catch(console.error);
-
-  } else {
-    window.addEventListener("deviceorientation", onOrientation);
-  }
-}
-
-function onOrientation(e) {
-  if (e.alpha === null) return;
-
-  // heading del dispositivo (0 = norte)
-  APP.deviceHeading = e.alpha;
-
-  updateARDirection();
-}
-
-function updateARDirection() {
-  if (!APP.svc || APP.userLat === null) return;
-
-  const brng = bearing(
-    APP.userLat,
-    APP.userLng,
-    APP.svc.lat,
-    APP.svc.lng
-  );
-
-  const heading = APP.deviceHeading || 0;
-
-  // Diferencia = hacia dónde girar la flecha
-  let rotation = brng - heading;
-
-  const arrow = document.getElementById("ar-direction-arrow");
-  if (arrow) {
-    arrow.style.transform =
-      `translate(-50%, -50%) rotate(${rotation}deg)`;
-  }
-}
+  initARCompass();
 
   // Poblar overlay con datos del POI actual
   if (APP.svc) {
@@ -2192,62 +2133,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─ Cargar recorrido desde URL si viene con ?tour= ─
   loadTourFromURL();
 });
-
-     /* ──────────────────────────────────────
-   ORIENTACIÓN REAL + FLECHA AR
-────────────────────────────────────── */
-function initOrientation() {
-  if (typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DeviceOrientationEvent.requestPermission === "function") {
-
-    DeviceOrientationEvent.requestPermission()
-      .then(response => {
-        if (response === "granted") {
-          window.addEventListener("deviceorientation", onOrientation);
-        }
-      })
-      .catch(console.error);
-
-  } else {
-    window.addEventListener("deviceorientation", onOrientation);
-  }
-}
-
-function onOrientation(e) {
-  if (e.alpha === null) return;
-
-  // heading del dispositivo (0 = norte)
-  APP.deviceHeading = e.alpha;
-
-  updateARDirection();
-}
-
-function updateARDirection() {
-  if (!APP.svc || APP.userLat === null) return;
-
-  const brng = bearing(
-    APP.userLat,
-    APP.userLng,
-    APP.svc.lat,
-    APP.svc.lng
-  );
-
-  const heading = APP.deviceHeading || 0;
-
-  // Diferencia = hacia dónde girar la flecha
-  let rotation = brng - heading;
-
-  const arrow = document.getElementById("ar-direction-arrow");
-  if (arrow) {
-    arrow.style.transform =
-      `translate(-50%, -50%) rotate(${rotation}deg)`;
-
-document.addEventListener("DOMContentLoaded", function() {
-  console.log("LOGOS CARGANDO...");
-  loadLogos();
-});
-  }
-}
 </script>
 </body>
 </html>
